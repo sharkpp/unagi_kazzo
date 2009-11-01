@@ -29,7 +29,7 @@ enum iobit_bus_control{
 };
 //when cpu_write_flash, phi2 must be low. when phi2 is high, mmc3 and vrc4 changes bank.
 enum {
-	BUS_CLOSE = 0xfe
+	BUS_CLOSE = 0xff
 };
 /*PDx: use input, empty pin is output*/
 #define USB_MISC_DIR IO_DIRECTION(D)
@@ -64,7 +64,7 @@ void phi2_init(void)
 
 static inline uint8_t bit_get_negative(enum iobit_bus_control bit)
 {
-	uint8_t ret = (1 << bit) | (1 << CPU_PHI2);
+	uint8_t ret = (1 << bit);
 	return ~ret;
 }
 
@@ -112,13 +112,17 @@ static inline void direction_read(void)
 	asm("nop");
 	asm("nop");
 }
+//mmc5 ROM area need that phi2 is high
 void cpu_read(uint16_t address, uint16_t length, uint8_t *data)
 {
 	BUS_CONTROL_OUT = BUS_CLOSE;
 	while(length != 0){
+//		uint8_t c = BUS_CLOSE;
 		direction_write();
 		address_set(address);
 		if((address & 0x8000) != 0){
+//			c &= bit_get_negative(CPU_ROMCS) | (1 << CPU_ROMCS);
+//			BUS_CONTROL_OUT = c;
 			BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
 		}
 		direction_read();
@@ -138,6 +142,7 @@ void cpu_read_6502(uint16_t address, uint16_t length, uint8_t *data)
 		uint8_t c = bit_get_negative(CPU_PHI2);
 		BUS_CONTROL_OUT = c;
 
+		//down -> up
 		direction_write();
 		address_set(address);
 		if((address & 0x8000) != 0){
@@ -147,21 +152,36 @@ void cpu_read_6502(uint16_t address, uint16_t length, uint8_t *data)
 		clock_wait(1);
 		
 		//phi2 up
-		c |= 1 << CPU_PHI2;
+		c |= (1 << CPU_PHI2) | (1 << CPU_ROMCS);
 		BUS_CONTROL_OUT = c;
-		direction_read();
-		*data = DATABUS_IN;
-		data += 1;
+		if(0){
+			direction_read();
+			*data = DATABUS_IN;
+			data += 1;
+		}
 		clock_wait(1);
+		if(1){
+			BUS_CONTROL_OUT = c;
+			direction_read();
+			*data = DATABUS_IN;
+			data += 1;
+		}
 		BUS_CONTROL_OUT = c;
 		
 		//phi2 down
-		c &= bit_get_negative(CPU_ROMCS);
+		if((address & 0x8000) != 0){
+			c &= bit_get_negative(CPU_ROMCS);
+		}
+		c &= bit_get_negative(CPU_PHI2);
+		if(0){
+			BUS_CONTROL_OUT = c;
+			direction_read();
+			*data = DATABUS_IN;
+			data += 1;
+		}
 		clock_wait(1);
-		BUS_CONTROL_OUT = c;
 		
 		//bus close
-		clock_wait(1);
 		BUS_CONTROL_OUT = BUS_CLOSE;
 		
 		address += 1;
@@ -228,13 +248,16 @@ void cpu_write_6502_nowait(uint16_t address, uint16_t length, const uint8_t *dat
 		BUS_CONTROL_OUT = control;
 		
 		//phi2 up
-		control |= 1 << CPU_PHI2;
+		control |= (1 << CPU_PHI2) | (1 << CPU_ROMCS);
 		BUS_CONTROL_OUT = control;
 		DATABUS_OUT = *data;
 		data++;
 		
 		//phi2 down
 		control &= bit_get_negative(CPU_PHI2);
+		if((address & 0x8000) != 0){
+			control &= bit_get_negative(CPU_ROMCS);
+		}
 		BUS_CONTROL_OUT = control;
 		
 		//bus close
@@ -249,7 +272,7 @@ void cpu_write_flash(uint16_t address, uint16_t length, const uint8_t *data)
 {
 	direction_write();
 	while(length != 0){
-		uint8_t control = BUS_CLOSE;
+		uint8_t control = bit_get_negative(CPU_PHI2);
 		address_set(address);
 		if((address & 0x8000) != 0){
 			control &= bit_get_negative(CPU_ROMCS);
@@ -290,7 +313,7 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 		clock_wait(1);
 
 		//phi2 up
-		control |= 1 << CPU_PHI2;
+		control |= (1 << CPU_PHI2); //| (1 << CPU_ROMCS);
 		BUS_CONTROL_OUT = control;
 		DATABUS_OUT = *data;
 		data++;
@@ -299,6 +322,9 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 		
 		//phi2 down
 		control &= bit_get_negative(CPU_PHI2);
+		if((address & 0x8000) != 0){
+			control &= bit_get_negative(CPU_ROMCS);
+		}
 		clock_wait(1);
 		BUS_CONTROL_OUT = control;
 		
