@@ -8,7 +8,7 @@
 #include "request.h"
 
 //---- global variable ----
-static struct{
+static struct write_command{
 	enum request request;
 	uint16_t address, length, offset;
 }write_command;
@@ -32,7 +32,11 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 	case REQUEST_PPU_FLASH_PROGRAM:{
 		static uint8_t *w = readbuffer;
 		if(write_command.offset == 0){
-			w = readbuffer;
+			if(write_command.request == REQUEST_CPU_FLASH_PROGRAM){
+				w = readbuffer;
+			}else{
+				w = readbuffer + 0x100;
+			}
 		}
 		while(len != 0){
 			*w = *data;
@@ -45,7 +49,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 			if(write_command.request == REQUEST_CPU_FLASH_PROGRAM){
 				flash_cpu_program(write_command.address, write_command.length, readbuffer);
 			}else{
-				flash_ppu_program(write_command.address, write_command.length, readbuffer);
+				flash_ppu_program(write_command.address, write_command.length, readbuffer + 0x100);
 			}
 		}
 		}return write_command.length == write_command.offset;
@@ -141,6 +145,11 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 	case REQUEST_DISK_WRITE:
 		disk_init(DISK_WRITE);
 		return 0;
+	case REQUEST_BOTH_FLASH_STATUS:
+		status[0] = flash_cpu_status();
+		status[1] = flash_ppu_status();
+		usbMsgPtr = status;
+		return 2;
 	case REQUEST_CPU_FLASH_STATUS:
 		status[0] = flash_cpu_status();
 		usbMsgPtr = status;

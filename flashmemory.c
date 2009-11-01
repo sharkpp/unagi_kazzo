@@ -19,7 +19,7 @@ struct flash_seqence{
 	uint8_t toggle;
 };
 static struct flash_seqence seqence_cpu = {
-	.status = IDLE, .reader = cpu_read, .writer = cpu_write_flash,
+	.status = IDLE, .reader = cpu_read_6502, .writer = cpu_write_flash,
 	.compare = cpu_compare
 };
 static struct flash_seqence seqence_ppu = {
@@ -192,7 +192,9 @@ static void process(struct flash_seqence *s)
 		erase_wait(s);
 		break;
 	case PROGRAM:
-		program(s);
+		if((s->program_unit != 1) || (*(s->data) != 0xff)){
+			program(s);
+		}
 		s->status = TOGGLE_FIRST;
 		break;
 	case TOGGLE_FIRST:
