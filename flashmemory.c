@@ -13,13 +13,13 @@ struct flash_seqence{
 		ERASE, ERASE_WAIT,
 		PROGRAM, TOGGLE_FIRST, TOGGLE_CHECK
 	} status, request;
-	uint16_t command_2aaa, command_5555;
+	uint16_t command_000x, command_2aaa, command_5555;
 	uint16_t address, length, program_unit;
 	const uint8_t *data;
-	uint8_t toggle;
+	uint8_t toggle, retry_count;
 };
 static struct flash_seqence seqence_cpu = {
-	.status = IDLE, .reader = cpu_read_6502, .writer = cpu_write_flash,
+	.status = IDLE, .reader = cpu_read, .writer = cpu_write_flash,
 	.compare = cpu_compare
 };
 static struct flash_seqence seqence_ppu = {
@@ -36,19 +36,20 @@ uint8_t flash_ppu_status(void)
 {
 	return seqence_ppu.status;
 }
-static void config_set(uint16_t c2aaa, uint16_t c5555, uint16_t unit, struct flash_seqence *t)
+static void config_set(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit, struct flash_seqence *t)
 {
+	t->command_000x = c000x;
 	t->command_2aaa = c2aaa;
 	t->command_5555 = c5555;
 	t->program_unit = unit;
 };
-void flash_cpu_config(uint16_t c2aaa, uint16_t c5555, uint16_t unit)
+void flash_cpu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit)
 {
-	config_set(c2aaa, c5555, unit, &seqence_cpu);
+	config_set(c000x, c2aaa, c5555, unit, &seqence_cpu);
 }
-void flash_ppu_config(uint16_t c2aaa, uint16_t c5555, uint16_t unit)
+void flash_ppu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit)
 {
-	config_set(c2aaa, c5555, unit, &seqence_ppu);
+	config_set(c000x, c2aaa, c5555, unit, &seqence_ppu);
 }
 
 static void program_assign(uint16_t address, uint16_t length, const uint8_t *data, struct flash_seqence *t)
@@ -56,6 +57,7 @@ static void program_assign(uint16_t address, uint16_t length, const uint8_t *dat
 	t->address = address;
 	t->length = length;
 	t->data = data;
+	t->retry_count = 0;
 }
 void flash_cpu_program(uint16_t address, uint16_t length, const uint8_t *data)
 {
@@ -107,7 +109,7 @@ static void command_execute(const struct flash_command *c, const struct flash_se
 		c++;
 	}
 }
-static void program(struct flash_seqence *t)
+static void program(const struct flash_seqence *t)
 {
 	static const struct flash_command c[] = {
 		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0xa0}, {END, 0}
@@ -116,7 +118,7 @@ static void program(struct flash_seqence *t)
 	t->writer(t->address, t->program_unit, t->data);
 }
 
-static void erase(struct flash_seqence *t)
+static void erase(const struct flash_seqence *t)
 {
 	static const struct flash_command c[] = {
 		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0x80}, 
@@ -126,6 +128,28 @@ static void erase(struct flash_seqence *t)
 	command_execute(c, t);
 }
 
+static void device_get(const struct flash_seqence *t, uint8_t d[2])
+{
+	static const struct flash_command entry[] = {
+		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0x90}, {END, 0}
+	};
+	static const struct flash_command exit[] = {
+		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0xf0}, {END, 0}
+	};
+	command_execute(entry, t);
+	t->reader(t->command_000x, 1, d);
+	command_execute(entry, t);
+	t->reader(t->command_000x + 1, 1, d + 1);
+	command_execute(exit, t);
+}
+void flash_cpu_device_get(uint8_t d[2])
+{
+	device_get(&seqence_cpu, d);
+}
+void flash_ppu_device_get(uint8_t d[2])
+{
+	device_get(&seqence_ppu, d);
+}
 //---- status read ----
 static void toggle_first(struct flash_seqence *t)
 {
@@ -138,10 +162,14 @@ static void toggle_check(struct flash_seqence *t)
 	t->reader(t->address, 1, &d);
 	if(t->toggle == (d & 0x40)){
 		if((t->program_unit != 1) && (t->request == PROGRAM)){ //page program device retry
-			if(t->compare(t->address, t->program_unit, t->data) == NG){
-				t->status = PROGRAM;
-				return;
+			if(t->retry_count >= 10){
+				if(t->compare(t->address, t->program_unit, t->data) == NG){
+					t->retry_count += 1;
+					t->status = PROGRAM;
+					return;
+				}
 			}
+			t->retry_count = 0;
 		}
 		t->address += t->program_unit;
 		t->data += t->program_unit;

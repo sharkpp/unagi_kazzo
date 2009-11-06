@@ -152,7 +152,7 @@ void cpu_read_6502(uint16_t address, uint16_t length, uint8_t *data)
 		clock_wait(1);
 		
 		//phi2 up
-		c |= (1 << CPU_PHI2) | (1 << CPU_ROMCS);
+		c |= (1 << CPU_PHI2); // | (1 << CPU_ROMCS);
 		BUS_CONTROL_OUT = c;
 		if(0){
 			direction_read();

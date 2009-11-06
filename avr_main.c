@@ -55,25 +55,31 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		}return write_command.length == write_command.offset;
 	case REQUEST_CPU_FLASH_CONFIG_SET:
 	case REQUEST_PPU_FLASH_CONFIG_SET:{
-		static uint16_t c2aaa, c5555, unit;
+		static uint16_t c000x, c2aaa, c5555, unit;
 		while(len != 0){
 			switch(write_command.offset){
 			case 0:
-				c2aaa = *data;
+				c000x = *data;
 				break;
 			case 1:
-				c2aaa |= *data << 8;
+				c000x |= *data;
 				break;
 			case 2:
-				c5555 = *data;
+				c2aaa = *data;
 				break;
 			case 3:
-				c5555 |= *data << 8;
+				c2aaa |= *data << 8;
 				break;
 			case 4:
-				unit = *data;
+				c5555 = *data;
 				break;
 			case 5:
+				c5555 |= *data << 8;
+				break;
+			case 6:
+				unit = *data;
+				break;
+			case 7:
 				unit |= *data << 8;
 				break;
 			}
@@ -81,11 +87,11 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 			write_command.offset += 1;
 			len--;
 		}
-		if(write_command.offset >= 6){
+		if(write_command.offset >= 8){
 			if(write_command.request == REQUEST_CPU_FLASH_CONFIG_SET){
-				flash_cpu_config(c2aaa, c5555, unit);
+				flash_cpu_config(c000x, c2aaa, c5555, unit);
 			}else{
-				flash_ppu_config(c2aaa, c5555, unit);
+				flash_ppu_config(c000x, c2aaa, c5555, unit);
 			}
 		}
 		}return write_command.length == write_command.offset;
@@ -158,6 +164,12 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		status[0] = flash_ppu_status();
 		usbMsgPtr = status;
 		return 1;
+	case REQUEST_CPU_FLASH_DEVICE:
+		flash_cpu_device_get(status);
+		return 2;
+	case REQUEST_PPU_FLASH_DEVICE:
+		flash_ppu_device_get(status);
+		return 2;
 	case REQUEST_CPU_FLASH_ERASE:
 		flash_cpu_erase(rq->wValue.word);
 		return 0;
