@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <util/delay.h>
 #include "request.h"
 #include "bus_access.h"
 

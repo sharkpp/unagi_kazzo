@@ -154,13 +154,13 @@ void cpu_read_6502(uint16_t address, uint16_t length, uint8_t *data)
 		//phi2 up
 		c |= (1 << CPU_PHI2); // | (1 << CPU_ROMCS);
 		BUS_CONTROL_OUT = c;
-		if(0){
+		if(1){
 			direction_read();
 			*data = DATABUS_IN;
 			data += 1;
 		}
 		clock_wait(1);
-		if(1){
+		if(0){
 			BUS_CONTROL_OUT = c;
 			direction_read();
 			*data = DATABUS_IN;
@@ -268,22 +268,51 @@ void cpu_write_6502_nowait(uint16_t address, uint16_t length, const uint8_t *dat
 	}
 }
 
+/*
+/WE controlled write operation has busconflict
+PHI2  |-__________-
+R/W   |----___-----
+/ROMCS|--_______---
+A0-A14|-<vaild address>-
+D0-D7 |--oo<i>**---
+o is dataout, i is datain, * is bus-confilict
+
+/CS controlled write operation is clean write cycle for flash memory
+PHI2  |-__________-
+R/W   |--_______---
+/ROMCS|----___-----
+A0-A14|-<vaild address>-
+D0-D7 |----<iii>---
+*/
 void cpu_write_flash(uint16_t address, uint16_t length, const uint8_t *data)
 {
 	direction_write();
 	while(length != 0){
 		uint8_t control = bit_get_negative(CPU_PHI2);
 		address_set(address);
-		if((address & 0x8000) != 0){
-			control &= bit_get_negative(CPU_ROMCS);
+		if(0){ //R/W = /WE controlled write operation
+			if((address & 0x8000) != 0){
+				control &= bit_get_negative(CPU_ROMCS);
+				BUS_CONTROL_OUT = control;
+			}
+			control &= bit_get_negative(CPU_RW);
+			BUS_CONTROL_OUT = control;
+			DATABUS_OUT = *data;
+			data++;
+			control |= 1 << CPU_RW; //R/W close
+			BUS_CONTROL_OUT = control;
+		}else{ ///ROMCS = /CS controlled write operation
+			control &= bit_get_negative(CPU_RW);
+			BUS_CONTROL_OUT = control;
+			if((address & 0x8000) != 0){
+				control &= bit_get_negative(CPU_ROMCS);
+				BUS_CONTROL_OUT = control;
+			}
+			DATABUS_OUT = *data;
+			data++;
+			control |= 1 << CPU_ROMCS;
 			BUS_CONTROL_OUT = control;
 		}
-		control &= bit_get_negative(CPU_RW);
-		BUS_CONTROL_OUT = control;
-		DATABUS_OUT = *data;
-		data++;
-		control |= 1 << CPU_RW; //R/W close
-		BUS_CONTROL_OUT = control;
 		BUS_CONTROL_OUT = BUS_CLOSE;
 		address += 1;
 		length--;
@@ -314,8 +343,9 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 
 		//phi2 up
 		control |= (1 << CPU_PHI2); //| (1 << CPU_ROMCS);
-		BUS_CONTROL_OUT = control;
 		DATABUS_OUT = *data;
+		BUS_CONTROL_OUT = control;
+//		DATABUS_OUT = *data;
 		data++;
 		clock_wait(1);
 		BUS_CONTROL_OUT = control;
