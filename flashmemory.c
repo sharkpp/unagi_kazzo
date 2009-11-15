@@ -5,9 +5,10 @@
 //---- global variable ----
 struct flash_seqence{
 	void (*const writer)(uint16_t address, uint16_t length, const uint8_t *data);
+	void (*const programmer)(const struct flash_order *t);
 	void (*const reader)(uint16_t address, uint16_t length, uint8_t *data);
 	enum compare_status (*const compare)(uint16_t address, uint16_t length, const uint8_t *data);
-	enum{
+	enum status{
 		IDLE = 0, 
 		ERASE, ERASE_WAIT,
 		PROGRAM, TOGGLE_FIRST, TOGGLE_CHECK
@@ -16,13 +17,16 @@ struct flash_seqence{
 	uint16_t address, length, program_unit;
 	const uint8_t *data;
 	uint8_t toggle, retry_count;
+	struct flash_order program_command[FLASH_PROGRAM_ORDER];
 };
 static struct flash_seqence seqence_cpu = {
-	.status = IDLE, .reader = cpu_read, .writer = cpu_write_flash,
+	.status = IDLE, .reader = cpu_read, 
+	.writer = cpu_write_flash, .programmer = cpu_write_flash_order,
 	.compare = cpu_compare
 };
 static struct flash_seqence seqence_ppu = {
-	.status = IDLE, .reader = ppu_read, .writer = ppu_write,
+	.status = IDLE, .reader = ppu_read, 
+	.writer = ppu_write, .programmer = ppu_write_order,
 	.compare = ppu_compare
 };
 
@@ -41,6 +45,12 @@ static void config_set(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t 
 	t->command_2aaa = c2aaa;
 	t->command_5555 = c5555;
 	t->program_unit = unit;
+	t->program_command[0].address = c5555;
+	t->program_command[0].data = 0xaa;
+	t->program_command[1].address = c2aaa;
+	t->program_command[1].data = 0x55;
+	t->program_command[2].address = c5555;
+	t->program_command[2].data = 0xa0;
 };
 void flash_cpu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit)
 {
@@ -51,8 +61,10 @@ void flash_ppu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t u
 	config_set(c000x, c2aaa, c5555, unit, &seqence_ppu);
 }
 
-static void program_assign(uint16_t address, uint16_t length, const uint8_t *data, struct flash_seqence *t)
+static void program_assign(enum status status, uint16_t address, uint16_t length, const uint8_t *data, struct flash_seqence *t)
 {
+	t->status = status;
+	t->request = status;
 	t->address = address;
 	t->length = length;
 	t->data = data;
@@ -60,29 +72,21 @@ static void program_assign(uint16_t address, uint16_t length, const uint8_t *dat
 }
 void flash_cpu_program(uint16_t address, uint16_t length, const uint8_t *data)
 {
-	seqence_cpu.status = PROGRAM;
-	seqence_cpu.request = PROGRAM;
-	program_assign(address, length, data, &seqence_cpu);
+	program_assign(PROGRAM, address, length, data, &seqence_cpu);
 }
 void flash_ppu_program(uint16_t address, uint16_t length, const uint8_t *data)
 {
-	seqence_ppu.status = PROGRAM;
-	seqence_ppu.request = PROGRAM;
-	program_assign(address, length, data, &seqence_ppu);
+	program_assign(PROGRAM, address, length, data, &seqence_ppu);
 }
 #define NULL (0)
 void flash_cpu_erase(uint16_t address)
 {
-	seqence_cpu.status = ERASE;
-	seqence_cpu.request = ERASE;
 	//length に unit を渡して toggle check 後 IDLE になるようにする
-	program_assign(address, seqence_cpu.program_unit, NULL, &seqence_cpu);
+	program_assign(ERASE, address, seqence_cpu.program_unit, NULL, &seqence_cpu);
 }
 void flash_ppu_erase(uint16_t address)
 {
-	seqence_ppu.status = ERASE;
-	seqence_ppu.request = ERASE;
-	program_assign(address, seqence_ppu.program_unit, NULL, &seqence_ppu);
+	program_assign(ERASE, address, seqence_ppu.program_unit, NULL, &seqence_ppu);
 }
 
 //---- command write ----
@@ -110,10 +114,11 @@ static void command_execute(const struct flash_command *c, const struct flash_se
 }
 static void program(const struct flash_seqence *t)
 {
-	static const struct flash_command c[] = {
+/*	static const struct flash_command c[] = {
 		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0xa0}, {END, 0}
 	};
-	command_execute(c, t);
+	command_execute(c, t);*/
+	t->programmer(t->program_command);
 	t->writer(t->address, t->program_unit, t->data);
 }
 

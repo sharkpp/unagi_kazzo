@@ -284,41 +284,54 @@ R/W   |--_______---
 A0-A14|-<vaild address>-
 D0-D7 |----<iii>---
 */
+static inline void cpu_write_flash_waveform(uint16_t address, uint8_t data)
+{
+	uint8_t control = bit_get_negative(CPU_PHI2);
+	address_set(address);
+	if(0){ //R/W = /WE controlled write operation
+		if((address & 0x8000) != 0){
+			control &= bit_get_negative(CPU_ROMCS);
+			BUS_CONTROL_OUT = control;
+		}
+		control &= bit_get_negative(CPU_RW);
+		BUS_CONTROL_OUT = control;
+		DATABUS_OUT = data;
+		control |= 1 << CPU_RW; //R/W close
+		BUS_CONTROL_OUT = control;
+	}else{ ///ROMCS = /CS controlled write operation
+		control &= bit_get_negative(CPU_RW);
+		BUS_CONTROL_OUT = control;
+		if((address & 0x8000) != 0){
+			control &= bit_get_negative(CPU_ROMCS);
+			BUS_CONTROL_OUT = control;
+		}
+		DATABUS_OUT = data;
+		control |= 1 << CPU_ROMCS;
+		BUS_CONTROL_OUT = control;
+	}
+	BUS_CONTROL_OUT = BUS_CLOSE;
+}
 void cpu_write_flash(uint16_t address, uint16_t length, const uint8_t *data)
 {
 	direction_write();
 	while(length != 0){
-		uint8_t control = bit_get_negative(CPU_PHI2);
-		address_set(address);
-		if(0){ //R/W = /WE controlled write operation
-			if((address & 0x8000) != 0){
-				control &= bit_get_negative(CPU_ROMCS);
-				BUS_CONTROL_OUT = control;
-			}
-			control &= bit_get_negative(CPU_RW);
-			BUS_CONTROL_OUT = control;
-			DATABUS_OUT = *data;
-			data++;
-			control |= 1 << CPU_RW; //R/W close
-			BUS_CONTROL_OUT = control;
-		}else{ ///ROMCS = /CS controlled write operation
-			control &= bit_get_negative(CPU_RW);
-			BUS_CONTROL_OUT = control;
-			if((address & 0x8000) != 0){
-				control &= bit_get_negative(CPU_ROMCS);
-				BUS_CONTROL_OUT = control;
-			}
-			DATABUS_OUT = *data;
-			data++;
-			control |= 1 << CPU_ROMCS;
-			BUS_CONTROL_OUT = control;
-		}
-		BUS_CONTROL_OUT = BUS_CLOSE;
+		cpu_write_flash_waveform(address, *data);
+		data++;
 		address += 1;
 		length--;
 	}
 }
 
+void cpu_write_flash_order(const struct flash_order *t)
+{
+	int length = FLASH_PROGRAM_ORDER;
+	direction_write();
+	while(length != 0){
+		cpu_write_flash_waveform(t->address, t->data);
+		t++;
+		length--;
+	}
+}
 /*
 NTSC hardware timing
 Master clock fsc: 21.4772272 MHz
@@ -367,16 +380,30 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 	}
 }
 
+static inline void ppu_write_waveform(uint16_t address, uint8_t data)
+{
+	address_set(address);//PPU memory /CS open
+	BUS_CONTROL_OUT = bit_get_negative(PPU_WR);
+	DATABUS_OUT = data;
+	BUS_CONTROL_OUT = BUS_CLOSE;
+	address_set(1 << 13); //PPU memory /CS close
+}
 void ppu_write(uint16_t address, uint16_t length, const uint8_t *data)
 {
 	while(length != 0){
-		address_set(address);//PPU memory /CS open
-		BUS_CONTROL_OUT = bit_get_negative(PPU_WR);
-		DATABUS_OUT = *data;
+		ppu_write_waveform(address, *data);
 		data++;
-		BUS_CONTROL_OUT = BUS_CLOSE;
-		address_set(1 << 13); //PPU memory /CS close
 		address += 1;
+		length--;
+	}
+}
+
+void ppu_write_order(const struct flash_order *t)
+{
+	int length = FLASH_PROGRAM_ORDER;
+	while(length != 0){
+		ppu_write_waveform(t->address, t->data);
+		t++;
 		length--;
 	}
 }

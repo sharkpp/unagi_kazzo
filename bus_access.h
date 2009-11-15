@@ -15,6 +15,15 @@ enum compare_status{
 };
 enum compare_status cpu_compare(uint16_t address, uint16_t length, const uint8_t *data);
 enum compare_status ppu_compare(uint16_t address, uint16_t length, const uint8_t *data);
+enum{
+	FLASH_PROGRAM_ORDER = 3
+};
+struct flash_order{
+	uint16_t address;
+	uint8_t data;
+};
+void cpu_write_flash_order(const struct flash_order *t);
+void ppu_write_order(const struct flash_order *t);
 #include <util/delay.h>
 static inline void clock_wait(double clock)
 {
