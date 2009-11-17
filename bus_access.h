@@ -24,6 +24,8 @@ struct flash_order{
 };
 void cpu_write_flash_order(const struct flash_order *t);
 void ppu_write_order(const struct flash_order *t);
+uint8_t vram_connection_get(void);
+
 #include <util/delay.h>
 static inline void clock_wait(double clock)
 {

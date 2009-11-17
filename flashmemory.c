@@ -39,6 +39,11 @@ uint8_t flash_ppu_status(void)
 {
 	return seqence_ppu.status;
 }
+void flash_both_idle(void)
+{
+	seqence_cpu.status = IDLE;
+	seqence_ppu.status = IDLE;
+}
 static void config_set(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit, struct flash_seqence *t)
 {
 	t->command_000x = c000x;

@@ -1,5 +1,6 @@
 #ifndef _FLASHMEMORY_H_
 #define _FLASHMEMORY_H_
+void flash_both_idle(void);
 //cpu
 uint8_t flash_cpu_status(void);
 void flash_cpu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit);

@@ -117,6 +117,7 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		usbMsgPtr = data;
 		return 4;
 	case REQUEST_PHI2_INIT:
+		flash_both_idle();
 		phi2_init();
 		return 0;
 	case REQUEST_CPU_READ:
@@ -176,6 +177,10 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 	case REQUEST_PPU_FLASH_ERASE:
 		flash_ppu_erase(rq->wValue.word);
 		return 0;
+	case REQUEST_VRAM_CONNECTION:
+		status[0] = vram_connection_get();
+		usbMsgPtr = status;
+		return 1;
 	}
 	return 0;
 }

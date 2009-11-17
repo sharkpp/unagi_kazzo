@@ -112,7 +112,7 @@ void disk_process(void)
 		uint8_t w;
 		_delay_ms(267 + 5);
 		
-		w = bit_set(ACCESS_START) | bit_set(UNKOWN) | bit_set(DIRECTION) | bit_set(MOTOR);
+		w = bit_set(ACCESS_START) | bit_set(UNKOWN) | bit_set(VRAM_MIRRORING) | bit_set(DIRECTION) | bit_set(MOTOR);
 		cpu_write_6502(DISK_CONTROL, 1, &w);
 		clock_wait(21 - 1);
 		//DRQ enable

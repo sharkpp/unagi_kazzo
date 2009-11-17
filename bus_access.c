@@ -1,5 +1,6 @@
 #include <util/delay.h>
 #include <avr/io.h>
+#include "type.h"
 #include "bus_access.h"
 
 //avr/io.h use many macros, I want use IO access by inline function...
@@ -34,6 +35,7 @@ enum {
 /*PDx: use input, empty pin is output*/
 #define USB_MISC_DIR IO_DIRECTION(D)
 #define USB_MISC_PULLUP IO_OUT(D)
+#define USB_MISC_IN IO_IN(D)
 enum iobit_usb_misc{
 	USB_DPLUS = 2, CPU_IRQ, 
 	USB_DMINUS, VRAM_A10
@@ -361,18 +363,18 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 //		DATABUS_OUT = *data;
 		data++;
 		clock_wait(1);
-		BUS_CONTROL_OUT = control;
 		
 		//phi2 down
 		control &= bit_get_negative(CPU_PHI2);
+		BUS_CONTROL_OUT = control;
 		if((address & 0x8000) != 0){
 			control &= bit_get_negative(CPU_ROMCS);
 		}
-		clock_wait(1);
+//		clock_wait(1);
 		BUS_CONTROL_OUT = control;
 		
 		//bus close
-		clock_wait(1);
+//		clock_wait(1);
 		BUS_CONTROL_OUT = BUS_CLOSE;
 		
 		address += 1;
@@ -406,4 +408,28 @@ void ppu_write_order(const struct flash_order *t)
 		t++;
 		length--;
 	}
+}
+
+uint8_t vram_connection_get(void)
+{
+	uint8_t ret;
+	uint16_t address = 0x2000;
+	direction_write();
+	address_set(address);
+	ret = bit_get(USB_MISC_IN, VRAM_A10);
+	address += 1 << 10;
+
+	address_set(address);
+	ret |= bit_get(USB_MISC_IN, VRAM_A10) << 1;
+	address += 1 << 10;
+	
+	address_set(address);
+	ret |= bit_get(USB_MISC_IN, VRAM_A10) << 2;
+	address += 1 << 10;
+
+	address_set(address);
+	ret |= bit_get(USB_MISC_IN, VRAM_A10) << 3;
+	address += 1 << 10;
+	
+	return ret;
 }
