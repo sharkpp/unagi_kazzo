@@ -246,7 +246,7 @@ static void process(struct flash_seqence *s)
 }
 void flash_process(void)
 {
-	//switchx2 is expantion, for CPU and PPU dual programming
+	//for CPU and PPU dual programming
 	process(&seqence_cpu);
 	process(&seqence_ppu);
 }

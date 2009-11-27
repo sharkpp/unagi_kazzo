@@ -149,6 +149,19 @@
 #define USB_CFG_DESCR_PROPS_HID_REPORT              0
 #define USB_CFG_DESCR_PROPS_UNKNOWN                 0
 
+/* #define USB_INTR_CFG            MCUCR */
+/* #define USB_INTR_CFG_CLR        0 */
+/* #define USB_INTR_ENABLE         GIMSK */
+/* #define USB_INTR_ENABLE_BIT     INT0 */
+/* #define USB_INTR_PENDING        GIFR */
+#define USB_INTR_PENDING_BIT    INTF0
 #define USB_INTR_CFG_SET        ((1 << ISC01) | (1 << ISC00) | (1 << ISC11)| (0 << ISC10)) 
+/* #define USB_INTR_VECTOR         SIG_INTERRUPT0 */
+
+#if 0//def atmega164p
+#define USB_INTR_CFG EICRA
+#define USB_INTR_PENDING EIFR
+#define USB_INTR_ENABLE         EIMSK
+#endif
 
 #endif /* __usbconfig_h_included__ */

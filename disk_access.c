@@ -117,7 +117,7 @@ void disk_process(void)
 		clock_wait(21 - 1);
 		//DRQ enable
 		//MCU INT1 init
-		GICR |= bit_set(INT1);
+//		GICR |= bit_set(INT1);
 		drq_count = DRQ_COUNT;
 		//RP2C33 IRQ enable
 		w |= bit_set(INTERRUPT);
@@ -133,7 +133,7 @@ void disk_process(void)
 /*		uint8_t w;
 		w = bit_set(ACCESS_START) | bit_set(UNKOWN) | bit_set(DIRECTION) | bit_set(MOTOR);
 		cpu_write_6502(DISK_CONTROL, 1, &w);*/
-		GICR &= ~bit_set(INT1);
+//		GICR &= ~bit_set(INT1);
 		
 		sequence = IDLE;
 		}break;
