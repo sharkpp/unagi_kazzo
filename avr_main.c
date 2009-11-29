@@ -5,19 +5,21 @@
 #include "bus_access.h"
 #include "disk_access.h"
 #include "flashmemory.h"
-#include "request.h"
+#include "kazzo_request.h"
 
 //---- global variable ----
 static struct write_command{
 	enum request request;
 	uint16_t address, length, offset;
 }write_command;
-static uint8_t readbuffer[READ_PACKET_SIZE];
 
 //---- function start ----
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
+	static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
+	static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
 	const uint16_t length = (uint16_t) len;
+	
 	switch(write_command.request){
 	case REQUEST_CPU_WRITE_6502:
 		cpu_write_6502(write_command.address + write_command.offset, length, data);
@@ -30,12 +32,12 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		break;
 	case REQUEST_CPU_FLASH_PROGRAM:
 	case REQUEST_PPU_FLASH_PROGRAM:{
-		static uint8_t *w = readbuffer;
+		static uint8_t *w = cpu_buffer; //this is static pointer! be careful.
 		if(write_command.offset == 0){
 			if(write_command.request == REQUEST_CPU_FLASH_PROGRAM){
-				w = readbuffer;
+				w = cpu_buffer;
 			}else{
-				w = readbuffer + 0x100;
+				w = ppu_buffer;
 			}
 		}
 		while(len != 0){
@@ -47,9 +49,9 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		}
 		if(write_command.length == write_command.offset){
 			if(write_command.request == REQUEST_CPU_FLASH_PROGRAM){
-				flash_cpu_program(write_command.address, write_command.length, readbuffer);
+				flash_cpu_program(write_command.address, write_command.length, cpu_buffer);
 			}else{
-				flash_ppu_program(write_command.address, write_command.length, readbuffer + 0x100);
+				flash_ppu_program(write_command.address, write_command.length, ppu_buffer);
 			}
 		}
 		}return write_command.length == write_command.offset;
@@ -104,9 +106,10 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 
 usbMsgLen_t usbFunctionSetup(uchar d[8])
 {
+	static uint8_t readbuffer[READ_PACKET_SIZE];
+	static uint8_t status[2];
 	usbRequest_t *rq = (void *)d;
 	uint8_t *data = readbuffer;
-	static uint8_t status[2];
 
 	switch((enum request) rq->bRequest){
 	case REQUEST_ECHO:
@@ -144,8 +147,8 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		write_command.offset = 0;
 		return USB_NO_MSG; //goto usbFunctionWrite
 	case REQUEST_DISK_STATUS_GET:
-		usbMsgPtr = data;
-		return disk_status_get(data);
+		usbMsgPtr = status;
+		return disk_status_get(status);
 	case REQUEST_DISK_READ: 
 		disk_init(DISK_READ);
 		return 0;

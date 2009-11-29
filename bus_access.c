@@ -384,11 +384,11 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 
 static inline void ppu_write_waveform(uint16_t address, uint8_t data)
 {
-	address_set(address);//PPU memory /CS open
+	address_set(address);//PPU charcter memory /CS open
 	BUS_CONTROL_OUT = bit_get_negative(PPU_WR);
 	DATABUS_OUT = data;
 	BUS_CONTROL_OUT = BUS_CLOSE;
-	address_set(1 << 13); //PPU memory /CS close
+	address_set(1 << 13); ///CS close
 }
 void ppu_write(uint16_t address, uint16_t length, const uint8_t *data)
 {

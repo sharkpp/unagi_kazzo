@@ -4,3 +4,6 @@ all:
 clean:
 	make -f firmware.mak MCU=atmega164p TARGET=kazzo_mega164p clean
 	make -f firmware.mak MCU=atmega16 TARGET=kazzo_mega16 clean
+
+p4p:
+	make -f firmware.mak MCU=atmega164p TARGET=kazzo_mega164p program

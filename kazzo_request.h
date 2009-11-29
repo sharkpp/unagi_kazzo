@@ -1,5 +1,13 @@
-#ifndef __REQUEST_H_
-#define __REQUEST_H_
+#ifndef _KAZZO_REQUEST_H_
+#define _KAZZO_REQUEST_H_
+#define USB_CFG_VENDOR_ID       0xc0, 0x16
+#define USB_CFG_DEVICE_ID       0xdc, 0x05
+#define USB_CFG_DEVICE_VERSION  0x00, 0x01
+#define USB_CFG_VENDOR_NAME     'o', 'b', 'd', 'e', 'v', '.', 'a', 't'
+#define USB_CFG_VENDOR_NAME_LEN 8
+#define USB_CFG_DEVICE_NAME     'k', 'a', 'z', 'z', 'o'
+#define USB_CFG_DEVICE_NAME_LEN 5
+
 enum request{
 	REQUEST_ECHO = 0,
 	REQUEST_PHI2_INIT,
@@ -17,13 +25,7 @@ enum request{
 	REQUEST_VRAM_CONNECTION
 };
 enum {
-	READ_PACKET_SIZE = 0x0200,
-	FLASH_PACKET_SIZE = READ_PACKET_SIZE / 2
+	READ_PACKET_SIZE = 0x0100,
+	FLASH_PACKET_SIZE = 0x0100
 };
-/*
-request argument
-bRequest       wValue  wLength
-xxx_READ       address length
-xxx_WRITExxxx  address length
-*/
 #endif

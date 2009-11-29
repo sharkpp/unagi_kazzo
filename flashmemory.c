@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include "request.h"
 #include "bus_access.h"
 
 //---- global variable ----

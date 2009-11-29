@@ -1,5 +1,6 @@
 F_CPU = 16000000
-FORMAT = srec
+#FORMAT = srec
+FORMAT = ihex
 
 # Target file name (without extension).
 OBJDIR = ./$(TARGET)
@@ -130,10 +131,10 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 # Programming hardware
 # Type: avrdude -c ?
 # to get a full listing.
-AVRDUDE_PROGRAMMER = stk500v2
+AVRDUDE_PROGRAMMER = avrisp #stk500v2
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
-AVRDUDE_PORT = com3 # programmer connected to serial device
+AVRDUDE_PORT = com4 # programmer connected to serial device
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
@@ -237,8 +238,8 @@ ALL_ASFLAGS = -mmcu=$(MCU) -I. -x assembler-with-cpp $(ASFLAGS)
 all: begin gccversion sizebefore build sizeafter end
 
 # Change the build target to build a HEX file or a library.
-build: elf hex eep lss sym sr
-#build: lib
+build: elf hex eep lss sym
+#build: lib sr
 
 
 elf: $(TARGET).elf
