@@ -10,7 +10,9 @@
 
 #ifndef __usbdrv_h_included__
 #define __usbdrv_h_included__
-#include "kazzo_request.h"
+#if !defined __ASSEMBLER__
+  #include "kazzo_request.h"
+#endif
 #include "usbconfig.h"
 #include "usbportability.h"
 
