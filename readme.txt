@@ -24,7 +24,7 @@ kazzo_test.exe
   loop back test client binary for Windows
 kazzo_mega16.hex kazzo_mega164p.hex
   firmware hex file written in S Record
-kazzo_schematics.png
+kazzo_schematics.pdf
   schematics graphic data
   notice! U1 pin number is assigned ATmega16 QFP.
 readme.txt
@@ -115,3 +115,5 @@ VRAM A10|18 48|VRAM CS#     D5| 7 14|A13      CPU IRQ#|17 24|CPU R/W
 - CPU A14 and PPU A13# are uniq address buses. 
 - U1 can substitute ATmega16.
 - SOUND IN and SOUND OUT has no connection.
+- If you need power switch, short JP1.
+- If you need reset switch, open JP2.

@@ -1,0 +1,242 @@
+Famicom Cartridge Bus Simulator: 'kazzo'
+Firmware USB Request Reference
+
+----Word Definitions----
+* CPU Memory Region
+The Famicom cartridge has two memory regions: CPU and PPU. The CPU 
+memory region is connected to various memory and registers. The cart 
+connects program memory (either ROM, RAM, or flash memory), 
+memory-controlled registers, etc.
+
+* PPU Memory Region
+The cartridge connects character memory (again, either ROM, RAM, or 
+flash memory) as a 'pattern table', nametable control signal (either 
+controlled by hard-wired means or ASICs), etc.
+
+* Read/Programming Buffer
+The AVR has less RAM space compared to the host software. Therefore 
+both the host software and firmware should send / request data in 
+smaller chunks in order to prevent a buffer overflow.
+
+* Registered Task
+Sometimes the firmware is unable to finish processing requests 
+momentarily. These requests are then treated as 'registered tasks.' 
+These tasks include programming/erasing flash memory or accessing the 
+FDS's disk drive. In this case, the host software will have to confirm 
+the task's status.
+Please note that reading & writing on memory are not considered tasks, 
+as they're processed by an interrupt request.
+
+* Read Buffer (1 region)
+Firmware sends 'read memory' data to the host software via a 'read 
+buffer.' 
+
+* Programming Buffer (2 regions)
+The host software sends the ROM image data, then the firmware saves 
+data to the programming buffer and registers it as a programming task.
+
+* Future Expansion Assignment
+Reserved for future implementation. Otherwise the latest firmware 
+version doesn't support this function at this time.
+
+----headerfile----
+The kazzo_request.h file assigns USB custom request numbers and 
+defines the read/programming buffer size. Both firmware and host 
+software have to share the same kazzo_request.h file.
+
+----request reference----
+REQUST_ECHO
+R/W: read
+Arguments:
+ wLength: must be set as a value of 4
+ wValue:  set test data
+ wIndex:  set test data
+Returns:
+ following 4 byte data. 
+ data[0] wValue bit 0-7
+ data[1] wValue bit 8-15
+ data[2] wIndex bit 0-7
+ data[2] wIndex bit 8-15
+Description:
+This request is used as a communication test. The firmware sends & 
+receives data in 4 byte chunks.
+
+REQUEST_PHI2_INIT
+R/W: write (immediate)
+Arguments: not used
+Returns: nothing
+Description:
+Intended for use with Namcot mappers, this request has two functions. 
+First, it instructs the firmware to interrupt any registered tasks. 
+Second, it initializes the mapper during the 'high' & 'low' states of 
+the CPU's PHI2 signal, times 0x80.
+
+REQUEST_CPU_READ
+REQUEST_PPU_READ
+R/W: read
+Arguments:
+ wLength: read length
+ wValue:  target address on current memory region
+ wIndex:  not used
+Returns: read data
+Description:
+These requests send read cycle access to the buses of the either the 
+CPU or PPU. The data is interpreted in sequential order. These 
+waveforms are NOT simulated for the 6502 nor the RP2C02.
+
+REQUEST_CPU_READ_6502
+R/W: read
+Arguments:
+ wLength: read length
+ wValue:  target address on current memory region
+ wIndex:  not used
+Returns: read data
+Description:
+This request is similar to 'REQUEST_CPU_READ', but instead simulates a 
+6502 CPU waveform @ 1.78MHz. Keep in mind that this is a fairly slow 
+process. The host software is only used for debugging purposes.
+
+REQUEST_CPU_WRITE_6502
+REQUEST_CPU_WRITE_FLASH
+REQUEST_PPU_WRITE
+R/W: write (immediate)
+Arguments:
+ wLength: write length
+ wValue:  target address on current memory region
+ wIndex:  not used
+ bData:   written data for current memory region
+Returns: nothing
+Description:
+These requests send write cycle access to the respective CPU / PPU 
+buses. Data is sent in sequential order. 
+- REQUEST_CPU_WRITE_6502's waveforms are simulated for the 6502. 
+- REQUEST_PPU_WRITE and REQUEST_CPU_WRITE_FLASH waveforms are 
+  customized for write cycles used in flash memory. Both requests are 
+  not used for programming.
+- REQUEST_CPU_WRITE_FLASH is assigned for debugging.
+- REQUEST_PPU_WRITE is assigned for dectecting charcter ROM or RAM.
+
+REQUEST_CPU_FLASH_CONFIG_SET
+REQUEST_PPU_FLASH_CONFIG_SET
+R/W: write (task)
+Arguments:
+ wLength: must be set as a value of 8
+ wValue:  not used
+ wIndex:  not used
+ bData:   programmed data for current memory region
+ bData[0] bit0-7 for command address 0x0000 (c000x)
+ bData[1] bit8-15 for command address 0x0000 (c000x)
+ bData[2] bit0-7 for command address 0x2aaa (c2aaa)
+ bData[3] bit8-15 for command address 0x2aaa (c2aaa)
+ bData[4] bit0-7 for command address 0x5555 (c5555)
+ bData[5] bit8-15 for command address 0x5555 (c5555)
+ bData[6] bit0-7 for programming unit length
+ bData[7] bit8-15 for programming unit length
+Returns: nothing
+Description:
+This request defines flash memory command addresses for the target 
+mapper and flash memory device. Please note that address (c000x) is 
+reserved for future expansion, so currently that address has no effect.
+
+REQUEST_CPU_FLASH_PROGRAM
+REQUEST_PPU_FLASH_PROGRAM
+R/W: write (task)
+Arguments:
+ wLength: programming length
+ wValue:  target address on current memory region
+ wIndex:  not used
+ bData:   programming data for current memory region
+Returns: nothing
+Description:
+This request allows the host software to send programming data. The 
+firmware then receives both data and registered programming tasks. 
+Keep in mind that programming tasks uses command addresses. Thus if 
+command addresses are not specifically defined, the programming task 
+will not correctly function.
+
+REQUEST_DISK_STATUS_GET
+REQUEST_DISK_READ
+REQUEST_DISK_WRITE
+(For reference only, these are currently reserved for future expansion.)
+
+REQUEST_BOTH_FLASH_STATUS
+R/W: read
+Arguments:
+ wLength: must be set as a value of 2
+ wValue:  not used
+ wIndex:  not used
+Returns:
+ data[0]: CPU flash programming task status
+ data[1]: PPU flash programming task status
+Description:
+This request determines the flash programming task status for both the 
+CPU and PPU. If the request returns a value of 0, the current task is 
+considered idle. In this case, the host software can proceed to send 
+the next programming request.
+
+REQUEST_CPU_FLASH_STATUS
+REQUEST_PPU_FLASH_STATUS
+R/W: read
+Arguments:
+ wLength: must be set as a value of 1
+ wValue:  not used
+ wIndex:  not used
+Returns:
+ data[0]: current memory region's flash programming task status
+Description:
+This request determines the flash programming task status for either 
+the CPU or PPU individually. Please see the description for 
+REQUEST_BOTH_FLASH_STATUS for more info.
+
+REQUEST_CPU_FLASH_DEVICE
+REQUEST_PPU_FLASH_DEVICE
+R/W: read
+Arguments:
+ wLength: must be set as a value of 2
+ wValue:  not used
+ wIndex:  not used
+Returns:
+ data[0]: flash memory device manufacturer code
+ data[1]: flash memory device device code
+Description:
+This request is reserved for future expansion. Soon, this will be used 
+to retrieve the flash memory's product ID. Otherwise this does not 
+function correctly at this time.
+
+REQUEST_CPU_FLASH_ERASE
+REQUEST_PPU_FLASH_ERASE
+R/W: write (task)
+Arguments:
+ wLength: must be set as a value of 0
+ wValue:  confirmed current region address during erase
+ wIndex:  not used
+Returns: nothing
+Description:
+Firmware registers an 'erase task' on flash memory. The host software 
+can retrieve the current progress status via the aforementioned 
+REQUEST_xxx_FLASH_STATUS requests.
+
+REQUEST_VRAM_CONNECTION
+R/W: read
+Arguments:
+ wLength: must be set as a value of 1
+ wValue:  not used
+ wIndex:  not used
+Returns: data[0]: VRAM A10 connection data
+Description:
+The firmware sets the PPU's address bus and retrieves VRAM A10 
+connection data, which is treated as a 4-bit value. 
+
+bit0: address set 0x2000
+bit1: address set 0x2400
+bit2: address set 0x2800
+bit3: address set 0x2c00
+bit4-7: not used, set as 0.
+
+If a basic board utilizing a hardwired VRAM mirroring connection is 
+being used, the following data is returned:
+0x00: nametable #0 only
+0x0f: nametable #1 only
+0x05: vertical mirroring
+0x09: horizonal mirroring
+
