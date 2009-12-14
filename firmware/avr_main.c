@@ -59,8 +59,8 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		break;
 	}
 	switch(request_cpu_program.request){
-	case REQUEST_CPU_FLASH_PROGRAM:
-	case REQUEST_CPU_FLASH_CONFIG_SET:{
+	case REQUEST_FLASH_PROGRAM:
+	case REQUEST_FLASH_CONFIG_SET:{
 		static uint8_t *w = cpu_buffer; //this is static pointer! be careful.
 		if(request_cpu_program.offset == 0){
 			w = cpu_buffer;
@@ -70,7 +70,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		request_cpu_program.offset += length;
 		int ret = request_cpu_program.offset >= request_cpu_program.length;
 		if(ret){
-			if(request_cpu_program.request == REQUEST_CPU_FLASH_CONFIG_SET){
+			if(request_cpu_program.request == REQUEST_FLASH_CONFIG_SET){
 				flash_config_set(cpu_buffer, flash_cpu_config);
 			}else{
 				flash_cpu_program(request_cpu_program.address, request_cpu_program.length, cpu_buffer);
@@ -82,8 +82,8 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		break;
 	}
 	switch(request_ppu_program.request){
-	case REQUEST_PPU_FLASH_PROGRAM:
-	case REQUEST_PPU_FLASH_CONFIG_SET:{
+	case REQUEST_FLASH_PROGRAM:
+	case REQUEST_FLASH_CONFIG_SET:{
 		static uint8_t *w = ppu_buffer; //static pointer
 		if(request_ppu_program.offset == 0){
 			w = ppu_buffer;
@@ -93,7 +93,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		request_ppu_program.offset += length;
 		int ret = request_ppu_program.offset >= request_ppu_program.length;
 		if(ret){
-			if(request_ppu_program.request == REQUEST_PPU_FLASH_CONFIG_SET){
+			if(request_ppu_program.request == REQUEST_FLASH_CONFIG_SET){
 				flash_config_set(ppu_buffer, flash_ppu_config);
 			}else{
 				flash_ppu_program(request_ppu_program.address, request_ppu_program.length, ppu_buffer);
@@ -143,13 +143,13 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 	case REQUEST_PPU_WRITE:
 		write_command = &request_both_write;
 		goto xxx_write;
-	case REQUEST_CPU_FLASH_PROGRAM:
-	case REQUEST_CPU_FLASH_CONFIG_SET:
-		write_command = &request_cpu_program;
-		goto xxx_write;
-	case REQUEST_PPU_FLASH_PROGRAM:
-	case REQUEST_PPU_FLASH_CONFIG_SET:
-		write_command = &request_ppu_program;
+	case REQUEST_FLASH_PROGRAM:
+	case REQUEST_FLASH_CONFIG_SET:
+		if(rq->wIndex.word == INDEX_CPU){
+			write_command = &request_cpu_program;
+		}else{
+			write_command = &request_ppu_program;
+		}
 		goto xxx_write;
 	xxx_write:
 		write_command->request = rq->bRequest;
@@ -157,11 +157,12 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		write_command->address = rq->wValue.word;
 		write_command->offset = 0;
 		return USB_NO_MSG; //goto usbFunctionWrite
-	case REQUEST_CPU_FLASH_BUFFER_GET:
-		usbMsgPtr = cpu_buffer;
-		return FLASH_PACKET_SIZE;
-	case REQUEST_PPU_FLASH_BUFFER_GET:
-		usbMsgPtr = ppu_buffer;
+	case REQUEST_FLASH_BUFFER_GET:
+		if(rq->wIndex.word == INDEX_CPU){
+			usbMsgPtr = cpu_buffer;
+		}else{
+			usbMsgPtr = ppu_buffer;
+		}
 		return FLASH_PACKET_SIZE;
 	case REQUEST_DISK_STATUS_GET:
 		usbMsgPtr = status;
@@ -177,25 +178,28 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		status[1] = flash_ppu_status();
 		usbMsgPtr = status;
 		return 2;
-	case REQUEST_CPU_FLASH_STATUS:
-		status[0] = flash_cpu_status();
+	case REQUEST_FLASH_STATUS:
+		if(rq->wIndex.word == INDEX_CPU){
+			status[0] = flash_cpu_status();
+		}else{
+			status[0] = flash_ppu_status();
+		}
 		usbMsgPtr = status;
 		return 1;
-	case REQUEST_PPU_FLASH_STATUS:
-		status[0] = flash_ppu_status();
+	case REQUEST_FLASH_DEVICE:
+		if(rq->wIndex.word == INDEX_CPU){
+			flash_cpu_device_get(status);
+		}else{
+			flash_ppu_device_get(status);
+		}
 		usbMsgPtr = status;
-		return 1;
-	case REQUEST_CPU_FLASH_DEVICE:
-		flash_cpu_device_get(status);
 		return 2;
-	case REQUEST_PPU_FLASH_DEVICE:
-		flash_ppu_device_get(status);
-		return 2;
-	case REQUEST_CPU_FLASH_ERASE:
-		flash_cpu_erase(rq->wValue.word);
-		return 0;
-	case REQUEST_PPU_FLASH_ERASE:
-		flash_ppu_erase(rq->wValue.word);
+	case REQUEST_FLASH_ERASE:
+		if(rq->wIndex.word == INDEX_CPU){
+			flash_cpu_erase(rq->wValue.word);
+		}else{
+			flash_ppu_erase(rq->wValue.word);
+		}
 		return 0;
 	case REQUEST_VRAM_CONNECTION:
 		status[0] = vram_connection_get();

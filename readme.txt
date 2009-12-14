@@ -18,13 +18,15 @@ firmware/
   enviroment.
 hostecho/
   source codes for kazzo_test.exe
+hostmodule/
+  module source codes for kazzo from 'unagi'
 windows_driver/
   device driver for Windows
 kazzo_test.exe
   loop back test client binary for Windows
 kazzo_mega16.hex kazzo_mega164p.hex
   firmware hex file written in S Record
-kazzo_schematics.pdf
+kazzo_schematics.pdf kazzo_schematics.png
   schematics graphic data
   notice! U1 pin number is assigned ATmega16 QFP.
 readme.txt
@@ -34,13 +36,13 @@ usbrequest.txt
 COPYING
   GPL v2 licencing document
 
-Host software 'unagi' is not included in this package. You can find 
-'unagi' from official project page.
+Host software 'unagi' is not included in this package. 'unagi's binary 
+and source codes are available from official project page.
 http://unagi.sourceforge.jp/
 
 ----AVR fusebit configuration----
-ATmega164P: low byte 0xe6, high byte 0xd9, extended byte 0xff
-  CKDIV8:1 CKOUT:1 SUT:10 CKSEL:0110
+ATmega164P: low byte 0xee, high byte 0xd9, extended byte 0xff
+  CKDIV8:1 CKOUT:1 SUT:10 CKSEL:1110
   OCDEN:1 JTAGEN:1 SPIEN:0 WDTON:1 EESAVE:1 BOOTSZ:00 BOOTRST:1
   BODLEVEL:111
 ATmega16:  low byte 0xae, high byte 0xc9

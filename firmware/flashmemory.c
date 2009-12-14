@@ -122,27 +122,14 @@ static void command_execute(const struct flash_command *c, const struct flash_se
 		c++;
 	}
 }
-#define COMMAND_INTERRUPT_CONTROL (0)
-#include "usbdrv.h"
 static void program(const struct flash_seqence *t)
 {
 /*	static const struct flash_command c[] = {
 		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0xa0}, {END, 0}
 	};
 	command_execute(c, t);*/
-//page write device はここで割り込みを停めれば書き込みが安定するはずなんだが、 usb の通信が切れてしまう
-//5 byte なら耐えられる模様
-	if(COMMAND_INTERRUPT_CONTROL == 1){
-		USB_INTR_ENABLE &= ~(1<< USB_INTR_ENABLE_BIT);
-	}
 	t->programmer(t->program_command);
-//	USB_INTR_ENABLE |= (1 << USB_INTR_ENABLE_BIT);
-//これは無理
-//	USB_INTR_ENABLE &= ~(1<< USB_INTR_ENABLE_BIT);
 	t->writer(t->address, t->program_unit, t->data);
-	if(COMMAND_INTERRUPT_CONTROL == 1){
-		USB_INTR_ENABLE |= (1 << USB_INTR_ENABLE_BIT);
-	}
 }
 
 static void erase(const struct flash_seqence *t)
@@ -247,9 +234,9 @@ static void process(struct flash_seqence *s)
 		erase_wait(s);
 		break;
 	case PROGRAM:
-		//if((s->program_unit != 1) || (*(s->data) != 0xff)){
+		if((s->program_unit != 1) || (*(s->data) != 0xff)){
 			program(s);
-		//}
+		}
 		s->status = TOGGLE_FIRST;
 		break;
 	case TOGGLE_FIRST:
