@@ -131,10 +131,10 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 # Programming hardware
 # Type: avrdude -c ?
 # to get a full listing.
-AVRDUDE_PROGRAMMER = avrisp #stk500v2
+AVRDUDE_PROGRAMMER = stk500v2 #avrispv2 #
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
-AVRDUDE_PORT = com4 # programmer connected to serial device
+AVRDUDE_PORT = com3 # programmer connected to serial device
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep

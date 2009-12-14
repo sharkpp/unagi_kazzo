@@ -387,8 +387,9 @@ static inline void ppu_write_waveform(uint16_t address, uint8_t data)
 	address_set(address);//PPU charcter memory /CS open
 	BUS_CONTROL_OUT = bit_get_negative(PPU_WR);
 	DATABUS_OUT = data;
+	asm("nop"); asm("nop");
 	BUS_CONTROL_OUT = BUS_CLOSE;
-	address_set(1 << 13); ///CS close
+	address_set(0x3fff); ///CS close, use pallete area. When address bus is 0x2000-0x2fff, some cartriges enable tilemap area.
 }
 void ppu_write(uint16_t address, uint16_t length, const uint8_t *data)
 {

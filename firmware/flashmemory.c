@@ -1,4 +1,6 @@
 #include <stdint.h>
+//#include <avr/interrupt.h>
+#include "kazzo_task.h"
 #include "bus_access.h"
 
 //---- global variable ----
@@ -8,7 +10,7 @@ struct flash_seqence{
 	void (*const reader)(uint16_t address, uint16_t length, uint8_t *data);
 	enum compare_status (*const compare)(uint16_t address, uint16_t length, const uint8_t *data);
 	enum status{
-		IDLE = 0, 
+		IDLE = KAZZO_TASK_FLASH_IDLE, 
 		ERASE, ERASE_WAIT,
 		PROGRAM, TOGGLE_FIRST, TOGGLE_CHECK
 	} status, request;
@@ -67,7 +69,11 @@ void flash_ppu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t u
 
 static void program_assign(enum status status, uint16_t address, uint16_t length, const uint8_t *data, struct flash_seqence *t)
 {
-	t->status = status;
+	if(0 && (t->program_unit != 1) && (t->status == PROGRAM)){ //W29C040 の再書き込み回数を減らしてみる
+		t->status = TOGGLE_FIRST;
+	}else{
+		t->status = status;
+	}
 	t->request = status;
 	t->address = address;
 	t->length = length;
@@ -116,14 +122,27 @@ static void command_execute(const struct flash_command *c, const struct flash_se
 		c++;
 	}
 }
+#define COMMAND_INTERRUPT_CONTROL (0)
+#include "usbdrv.h"
 static void program(const struct flash_seqence *t)
 {
 /*	static const struct flash_command c[] = {
 		{C5555, 0xaa}, {C2AAA, 0x55}, {C5555, 0xa0}, {END, 0}
 	};
 	command_execute(c, t);*/
+//page write device はここで割り込みを停めれば書き込みが安定するはずなんだが、 usb の通信が切れてしまう
+//5 byte なら耐えられる模様
+	if(COMMAND_INTERRUPT_CONTROL == 1){
+		USB_INTR_ENABLE &= ~(1<< USB_INTR_ENABLE_BIT);
+	}
 	t->programmer(t->program_command);
+//	USB_INTR_ENABLE |= (1 << USB_INTR_ENABLE_BIT);
+//これは無理
+//	USB_INTR_ENABLE &= ~(1<< USB_INTR_ENABLE_BIT);
 	t->writer(t->address, t->program_unit, t->data);
+	if(COMMAND_INTERRUPT_CONTROL == 1){
+		USB_INTR_ENABLE |= (1 << USB_INTR_ENABLE_BIT);
+	}
 }
 
 static void erase(const struct flash_seqence *t)
@@ -170,7 +189,7 @@ static void toggle_check(struct flash_seqence *t)
 	t->reader(t->address, 1, &d);
 	if(t->toggle == (d & 0x40)){
 		if((t->program_unit != 1) && (t->request == PROGRAM)){ //page program device retry
-			if(t->retry_count >= 10){
+			if(t->retry_count >= 20){
 				if(t->compare(t->address, t->program_unit, t->data) == NG){
 					t->retry_count += 1;
 					t->status = PROGRAM;
@@ -228,9 +247,9 @@ static void process(struct flash_seqence *s)
 		erase_wait(s);
 		break;
 	case PROGRAM:
-		if((s->program_unit != 1) || (*(s->data) != 0xff)){
+		//if((s->program_unit != 1) || (*(s->data) != 0xff)){
 			program(s);
-		}
+		//}
 		s->status = TOGGLE_FIRST;
 		break;
 	case TOGGLE_FIRST:

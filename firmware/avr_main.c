@@ -1,6 +1,7 @@
 #include <avr/wdt.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <string.h>
 #include "usbdrv.h"
 #include "bus_access.h"
 #include "disk_access.h"
@@ -8,100 +9,102 @@
 #include "kazzo_request.h"
 
 //---- global variable ----
+#define REQUEST_NOP (0xee)
 static struct write_command{
 	enum request request;
 	uint16_t address, length, offset;
-}write_command;
+}request_both_write, request_cpu_program, request_ppu_program;
 
 //---- function start ----
+static void flash_config_set(const uint8_t *t, void (*set)(uint16_t, uint16_t, uint16_t, uint16_t))
+{
+	uint16_t c000x, c2aaa, c5555, unit;
+	c000x = t[0];
+	c000x |= t[1] << 8;
+	c2aaa = t[2];
+	c2aaa |= t[3] << 8;
+	c5555 = t[4];
+	c5555 |= t[5] << 8;
+	unit = t[6];
+	unit |= t[7] << 8;
+	(*set)(c000x, c2aaa, c5555, unit);
+}
+static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
+static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
-	static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
-	static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
+//	static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
+//	static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
 	const uint16_t length = (uint16_t) len;
 	
-	switch(write_command.request){
+	switch(request_both_write.request){
 	case REQUEST_CPU_WRITE_6502:
-		cpu_write_6502(write_command.address + write_command.offset, length, data);
-		break;
+		cpu_write_6502(request_both_write.address + request_both_write.offset, length, data);
+		goto BOTH_NEXT;
 	case REQUEST_CPU_WRITE_FLASH:
-		cpu_write_flash(write_command.address + write_command.offset, length, data);
-		break;
+		cpu_write_flash(request_both_write.address + request_both_write.offset, length, data);
+		goto BOTH_NEXT;
 	case REQUEST_PPU_WRITE:
-		ppu_write(write_command.address + write_command.offset, length, data);
-		break;
-	case REQUEST_CPU_FLASH_PROGRAM:
-	case REQUEST_PPU_FLASH_PROGRAM:{
-		static uint8_t *w = cpu_buffer; //this is static pointer! be careful.
-		if(write_command.offset == 0){
-			if(write_command.request == REQUEST_CPU_FLASH_PROGRAM){
-				w = cpu_buffer;
-			}else{
-				w = ppu_buffer;
-			}
+		ppu_write(request_both_write.address + request_both_write.offset, length, data);
+		goto BOTH_NEXT;
+	BOTH_NEXT:{
+		request_both_write.offset += length;
+		int ret = request_both_write.offset == request_both_write.length;
+		if(ret){
+			request_both_write.request = REQUEST_NOP;
 		}
-		while(len != 0){
-			*w = *data;
-			w++;
-			data++;
-			write_command.offset += 1;
-			len--;
+		return ret;
 		}
-		if(write_command.length == write_command.offset){
-			if(write_command.request == REQUEST_CPU_FLASH_PROGRAM){
-				flash_cpu_program(write_command.address, write_command.length, cpu_buffer);
-			}else{
-				flash_ppu_program(write_command.address, write_command.length, ppu_buffer);
-			}
-		}
-		}return write_command.length == write_command.offset;
-	case REQUEST_CPU_FLASH_CONFIG_SET:
-	case REQUEST_PPU_FLASH_CONFIG_SET:{
-		static uint16_t c000x, c2aaa, c5555, unit;
-		while(len != 0){
-			switch(write_command.offset){
-			case 0:
-				c000x = *data;
-				break;
-			case 1:
-				c000x |= *data;
-				break;
-			case 2:
-				c2aaa = *data;
-				break;
-			case 3:
-				c2aaa |= *data << 8;
-				break;
-			case 4:
-				c5555 = *data;
-				break;
-			case 5:
-				c5555 |= *data << 8;
-				break;
-			case 6:
-				unit = *data;
-				break;
-			case 7:
-				unit |= *data << 8;
-				break;
-			}
-			data += 1;
-			write_command.offset += 1;
-			len--;
-		}
-		if(write_command.offset >= 8){
-			if(write_command.request == REQUEST_CPU_FLASH_CONFIG_SET){
-				flash_cpu_config(c000x, c2aaa, c5555, unit);
-			}else{
-				flash_ppu_config(c000x, c2aaa, c5555, unit);
-			}
-		}
-		}return write_command.length == write_command.offset;
 	default:
-		return 1;
+		break;
 	}
-	write_command.offset += length;
-	return write_command.length == write_command.offset;
+	switch(request_cpu_program.request){
+	case REQUEST_CPU_FLASH_PROGRAM:
+	case REQUEST_CPU_FLASH_CONFIG_SET:{
+		static uint8_t *w = cpu_buffer; //this is static pointer! be careful.
+		if(request_cpu_program.offset == 0){
+			w = cpu_buffer;
+		}
+		memcpy(w, data, length);
+		w += length;
+		request_cpu_program.offset += length;
+		int ret = request_cpu_program.offset >= request_cpu_program.length;
+		if(ret){
+			if(request_cpu_program.request == REQUEST_CPU_FLASH_CONFIG_SET){
+				flash_config_set(cpu_buffer, flash_cpu_config);
+			}else{
+				flash_cpu_program(request_cpu_program.address, request_cpu_program.length, cpu_buffer);
+			}
+			request_cpu_program.request = REQUEST_NOP;
+		}
+		return ret;}
+	default:
+		break;
+	}
+	switch(request_ppu_program.request){
+	case REQUEST_PPU_FLASH_PROGRAM:
+	case REQUEST_PPU_FLASH_CONFIG_SET:{
+		static uint8_t *w = ppu_buffer; //static pointer
+		if(request_ppu_program.offset == 0){
+			w = ppu_buffer;
+		}
+		memcpy(w, data, length);
+		w += length;
+		request_ppu_program.offset += length;
+		int ret = request_ppu_program.offset >= request_ppu_program.length;
+		if(ret){
+			if(request_ppu_program.request == REQUEST_PPU_FLASH_CONFIG_SET){
+				flash_config_set(ppu_buffer, flash_ppu_config);
+			}else{
+				flash_ppu_program(request_ppu_program.address, request_ppu_program.length, ppu_buffer);
+			}
+			request_ppu_program.request = REQUEST_NOP;
+		}
+		return ret;}
+	default:
+		break;
+	}
+	return 1; //when returns 0, sometime occours USB commnunication Error
 }
 
 usbMsgLen_t usbFunctionSetup(uchar d[8])
@@ -110,6 +113,7 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 	static uint8_t status[2];
 	usbRequest_t *rq = (void *)d;
 	uint8_t *data = readbuffer;
+	struct write_command *write_command;
 
 	switch((enum request) rq->bRequest){
 	case REQUEST_ECHO:
@@ -137,15 +141,28 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		return rq->wLength.word;
 	case REQUEST_CPU_WRITE_6502: case REQUEST_CPU_WRITE_FLASH:
 	case REQUEST_PPU_WRITE:
+		write_command = &request_both_write;
+		goto xxx_write;
 	case REQUEST_CPU_FLASH_PROGRAM:
 	case REQUEST_CPU_FLASH_CONFIG_SET:
+		write_command = &request_cpu_program;
+		goto xxx_write;
 	case REQUEST_PPU_FLASH_PROGRAM:
 	case REQUEST_PPU_FLASH_CONFIG_SET:
-		write_command.request = rq->bRequest;
-		write_command.length = rq->wLength.word;
-		write_command.address = rq->wValue.word;
-		write_command.offset = 0;
+		write_command = &request_ppu_program;
+		goto xxx_write;
+	xxx_write:
+		write_command->request = rq->bRequest;
+		write_command->length = rq->wLength.word;
+		write_command->address = rq->wValue.word;
+		write_command->offset = 0;
 		return USB_NO_MSG; //goto usbFunctionWrite
+	case REQUEST_CPU_FLASH_BUFFER_GET:
+		usbMsgPtr = cpu_buffer;
+		return FLASH_PACKET_SIZE;
+	case REQUEST_PPU_FLASH_BUFFER_GET:
+		usbMsgPtr = ppu_buffer;
+		return FLASH_PACKET_SIZE;
 	case REQUEST_DISK_STATUS_GET:
 		usbMsgPtr = status;
 		return disk_status_get(status);
@@ -190,6 +207,12 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 
 int main(void)
 {
+	static const struct write_command wc_init = {
+		.request = REQUEST_NOP, .length = 0, .offset = 0
+	};
+	request_both_write = wc_init;
+	request_cpu_program = wc_init;
+	request_ppu_program = wc_init;
 	uchar   i;
 
 	bus_init();
