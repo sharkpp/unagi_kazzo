@@ -116,13 +116,12 @@ buses. Data is sent in sequential order.
 - REQUEST_CPU_WRITE_FLASH is assigned for debugging.
 - REQUEST_PPU_WRITE is assigned for dectecting charcter ROM or RAM.
 
-REQUEST_CPU_FLASH_CONFIG_SET
-REQUEST_PPU_FLASH_CONFIG_SET
+REQUEST_FLASH_CONFIG_SET
 R/W: write (task)
 Arguments:
  wLength: must be set as a value of 8
  wValue:  not used
- wIndex:  not used
+ wIndex:  target memory region. INDEX_CPU or INDEX_PPU
  bData:   programmed data for current memory region
  bData[0] bit0-7 for command address 0x0000 (c000x)
  bData[1] bit8-15 for command address 0x0000 (c000x)
@@ -138,13 +137,12 @@ This request defines flash memory command addresses for the target
 mapper and flash memory device. Please note that address (c000x) is 
 reserved for future expansion, so currently that address has no effect.
 
-REQUEST_CPU_FLASH_PROGRAM
-REQUEST_PPU_FLASH_PROGRAM
+REQUEST_FLASH_PROGRAM
 R/W: write (task)
 Arguments:
  wLength: programming length
  wValue:  target address on current memory region
- wIndex:  not used
+ wIndex:  target memory region. INDEX_CPU or INDEX_PPU
  bData:   programming data for current memory region
 Returns: nothing
 Description:
@@ -158,43 +156,29 @@ REQUEST_DISK_STATUS_GET
 REQUEST_DISK_READ
 REQUEST_DISK_WRITE
 (For reference only, these are currently reserved for future expansion.)
-
-REQUEST_BOTH_FLASH_STATUS
+REQUEST_FLASH_STATUS
 R/W: read
 Arguments:
- wLength: must be set as a value of 2
+ wLength: must be set as a value of 1 or 2
  wValue:  not used
- wIndex:  not used
+ wIndex:  target memory region. INDEX_CPU, INDEX_PPU or INDEX_BOTH
 Returns:
+when wIndex is INDEX_CPU or INDEX_PPU:
+ data[0]: current memory region's flash programming task status
+when wIndex is INDEX_BOTH:
  data[0]: CPU flash programming task status
  data[1]: PPU flash programming task status
-Description:
-This request determines the flash programming task status for both the 
-CPU and PPU. If the request returns a value of 0, the current task is 
-considered idle. In this case, the host software can proceed to send 
-the next programming request.
-
-REQUEST_CPU_FLASH_STATUS
-REQUEST_PPU_FLASH_STATUS
-R/W: read
-Arguments:
- wLength: must be set as a value of 1
- wValue:  not used
- wIndex:  not used
-Returns:
- data[0]: current memory region's flash programming task status
 Description:
 This request determines the flash programming task status for either 
 the CPU or PPU individually. Please see the description for 
 REQUEST_BOTH_FLASH_STATUS for more info.
 
-REQUEST_CPU_FLASH_DEVICE
-REQUEST_PPU_FLASH_DEVICE
+REQUEST_FLASH_DEVICE
 R/W: read
 Arguments:
  wLength: must be set as a value of 2
  wValue:  not used
- wIndex:  not used
+ wIndex:  target memory region. INDEX_CPU or INDEX_PPU
 Returns:
  data[0]: flash memory device manufacturer code
  data[1]: flash memory device device code
@@ -203,18 +187,17 @@ This request is reserved for future expansion. Soon, this will be used
 to retrieve the flash memory's product ID. Otherwise this does not 
 function correctly at this time.
 
-REQUEST_CPU_FLASH_ERASE
-REQUEST_PPU_FLASH_ERASE
+REQUEST_FLASH_ERASE
 R/W: write (task)
 Arguments:
  wLength: must be set as a value of 0
  wValue:  confirmed current region address during erase
- wIndex:  not used
+ wIndex:  target memory region. INDEX_CPU or INDEX_PPU
 Returns: nothing
 Description:
 Firmware registers an 'erase task' on flash memory. The host software 
 can retrieve the current progress status via the aforementioned 
-REQUEST_xxx_FLASH_STATUS requests.
+REQUEST_FLASH_STATUS requests.
 
 REQUEST_VRAM_CONNECTION
 R/W: read

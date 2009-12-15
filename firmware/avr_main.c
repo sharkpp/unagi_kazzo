@@ -29,14 +29,18 @@ static void flash_config_set(const uint8_t *t, void (*set)(uint16_t, uint16_t, u
 	unit |= t[7] << 8;
 	(*set)(c000x, c2aaa, c5555, unit);
 }
-static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
-static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
+/*static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
+static uint8_t ppu_buffer[FLASH_PACKET_SIZE];*/
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
-//	static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
-//	static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
+	static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
+	static uint8_t ppu_buffer[FLASH_PACKET_SIZE];
 	const uint16_t length = (uint16_t) len;
-	
+	uchar i;
+	//decode masked data
+	for(i = 0; i < len; i++){
+		data[i] ^= 0xa5;
+	}
 	switch(request_both_write.request){
 	case REQUEST_CPU_WRITE_6502:
 		cpu_write_6502(request_both_write.address + request_both_write.offset, length, data);
@@ -68,7 +72,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		memcpy(w, data, length);
 		w += length;
 		request_cpu_program.offset += length;
-		int ret = request_cpu_program.offset >= request_cpu_program.length;
+		int ret = request_cpu_program.offset == request_cpu_program.length;
 		if(ret){
 			if(request_cpu_program.request == REQUEST_FLASH_CONFIG_SET){
 				flash_config_set(cpu_buffer, flash_cpu_config);
@@ -91,7 +95,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		memcpy(w, data, length);
 		w += length;
 		request_ppu_program.offset += length;
-		int ret = request_ppu_program.offset >= request_ppu_program.length;
+		int ret = request_ppu_program.offset == request_ppu_program.length;
 		if(ret){
 			if(request_ppu_program.request == REQUEST_FLASH_CONFIG_SET){
 				flash_config_set(ppu_buffer, flash_ppu_config);
@@ -157,13 +161,13 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		write_command->address = rq->wValue.word;
 		write_command->offset = 0;
 		return USB_NO_MSG; //goto usbFunctionWrite
-	case REQUEST_FLASH_BUFFER_GET:
+/*	case REQUEST_FLASH_BUFFER_GET:
 		if(rq->wIndex.word == INDEX_CPU){
 			usbMsgPtr = cpu_buffer;
 		}else{
 			usbMsgPtr = ppu_buffer;
 		}
-		return FLASH_PACKET_SIZE;
+		return FLASH_PACKET_SIZE;*/
 	case REQUEST_DISK_STATUS_GET:
 		usbMsgPtr = status;
 		return disk_status_get(status);
@@ -173,18 +177,20 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 	case REQUEST_DISK_WRITE:
 		disk_init(DISK_WRITE);
 		return 0;
-	case REQUEST_BOTH_FLASH_STATUS:
-		status[0] = flash_cpu_status();
-		status[1] = flash_ppu_status();
-		usbMsgPtr = status;
-		return 2;
 	case REQUEST_FLASH_STATUS:
-		if(rq->wIndex.word == INDEX_CPU){
-			status[0] = flash_cpu_status();
-		}else{
-			status[0] = flash_ppu_status();
-		}
 		usbMsgPtr = status;
+		switch((enum index) rq->wIndex.word){
+		case INDEX_CPU:
+			status[0] = flash_cpu_status();
+			return 1;
+		case INDEX_PPU:
+			status[0] = flash_ppu_status();
+			return 1;
+		default:
+			status[0] = flash_cpu_status();
+			status[1] = flash_ppu_status();
+			return 2;
+		}
 		return 1;
 	case REQUEST_FLASH_DEVICE:
 		if(rq->wIndex.word == INDEX_CPU){
