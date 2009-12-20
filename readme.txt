@@ -26,7 +26,7 @@ kazzo_test.exe
   loop back test client binary for Windows
 kazzo_mega16.hex kazzo_mega164p.hex
   firmware hex file written in S Record
-kazzo_schematics.pdf kazzo_schematics.png
+kazzo_schematics.png
   schematics graphic data
   notice! U1 pin number is assigned ATmega16 QFP.
 readme.txt

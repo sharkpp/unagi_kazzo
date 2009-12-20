@@ -138,8 +138,10 @@ AVRDUDE_PORT = com3 # programmer connected to serial device
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
-AVRDUDE_WRITE_FUSE = -U lfuse:w:0xc9:m -U hfuse:w:0xae:m
-#-U lfuse:w:0xee:m -U hfuse:w:0xd9:m
+AVRDUDE_WRITE_FUSE = -U lfuse:w:0xae:m -U hfuse:w:0xc9:m
+ifeq ($(MCU),atmega164p)
+  AVRDUDE_WRITE_FUSE = -U lfuse:w:0xee:m -U hfuse:w:0xd9:m
+endif
 # Uncomment the following if you do /not/ wish a verification to be
 # performed after programming the device.
 #AVRDUDE_NO_VERIFY = -V

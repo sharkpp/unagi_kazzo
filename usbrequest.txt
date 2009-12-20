@@ -117,7 +117,7 @@ buses. Data is sent in sequential order.
 - REQUEST_PPU_WRITE is assigned for dectecting charcter ROM or RAM.
 
 REQUEST_FLASH_CONFIG_SET
-R/W: write (task)
+R/W: write (immediate)
 Arguments:
  wLength: must be set as a value of 8
  wValue:  not used
@@ -170,8 +170,7 @@ when wIndex is INDEX_BOTH:
  data[1]: PPU flash programming task status
 Description:
 This request determines the flash programming task status for either 
-the CPU or PPU individually. Please see the description for 
-REQUEST_BOTH_FLASH_STATUS for more info.
+the CPU or PPU individually. 
 
 REQUEST_FLASH_DEVICE
 R/W: read
