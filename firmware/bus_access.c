@@ -20,7 +20,9 @@ enum databus_dir{
 	DATABUS_DIR_OUT = 0xff,
 	DATABUS_DIR_IN = 0
 };
-/*PCx: output ADDRESS_HIGH_LATCH connect HC574 clock pin, bus control signal*/
+/*PCx: output ADDRESS_HIGH_LATCH connect HC574 clock pin, bus control signal
+VRAM_CS is input port this is design mistake!
+*/
 #define BUS_CONTROL_DIR IO_DIRECTION(C)
 #define BUS_CONTROL_OUT IO_OUT(C)
 enum iobit_bus_control{
@@ -40,12 +42,18 @@ enum iobit_usb_misc{
 	USB_DPLUS = 2, CPU_IRQ, 
 	USB_DMINUS, VRAM_A10
 };
+static inline uint8_t bit_get_negative(enum iobit_bus_control bit)
+{
+	uint8_t ret = (1 << bit);
+	return ~ret;
+}
+
 void bus_init(void)
 {
 	ADDRESSBUS_A0_A7_DIR = 0xff;
 	ADDRESSBUS_A0_A7_OUT = 0;
 	DATABUS_DIR = DATABUS_DIR_OUT;
-	BUS_CONTROL_DIR = 0xff;
+	BUS_CONTROL_DIR = bit_get_negative(VRAM_CS); //VRAM_CS is input port
 	BUS_CONTROL_OUT = BUS_CLOSE;
 	USB_MISC_DIR = (0b1100 << 4) | 0b0011; //empty pin use OUT
 	USB_MISC_PULLUP = (1 << CPU_IRQ) | (1 << VRAM_A10);
@@ -62,12 +70,6 @@ void phi2_init(void)
 		BUS_CONTROL_OUT = BUS_CLOSE ^ (1 << CPU_PHI2);
 		i--;
 	}
-}
-
-static inline uint8_t bit_get_negative(enum iobit_bus_control bit)
-{
-	uint8_t ret = (1 << bit);
-	return ~ret;
 }
 
 //for RAM adapter DRAM refresh
