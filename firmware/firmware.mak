@@ -1,12 +1,13 @@
 F_CPU = 16000000
 #FORMAT = srec
-FORMAT = ihex
+#FORMAT = ihex
+FORMAT = binary
 
 # Target file name (without extension).
 OBJDIR = ./$(TARGET)
 
 USBDRIVER = ./usbdrv
-SRC = avr_main.c bus_access.c disk_access.c flashmemory.c $(addprefix $(USBDRIVER)/,usbdrv.c oddebug.c)
+SRC = avr_main.c bus_access.c  flashmemory.c disk_access.c mcu_program.c $(addprefix $(USBDRIVER)/,usbdrv.c oddebug.c)
 
 ASRC = $(USBDRIVER)/usbdrvasm.S
 
@@ -27,7 +28,7 @@ DEBUG = dwarf-2
 EXTRAINCDIRS = $(USBDRIVER)
 
 CSTANDARD = -std=gnu99
-CDEFS = -DF_CPU=$(F_CPU)UL -DDEBUG_LEVEL=0
+CDEFS = -DF_CPU=$(F_CPU)UL -DDEBUG_LEVEL=0 -DPCB_REVISION=$(PCB_REVISION)
 ADEFS = -DF_CPU=$(F_CPU) -DDEBUG_LEVEL=0
 CPPDEFS = -DF_CPU=$(F_CPU)UL
 
@@ -91,10 +92,7 @@ SCANF_LIB_FLOAT = -Wl,-u,vfscanf -lscanf_flt
 SCANF_LIB = 
 #SCANF_LIB = $(SCANF_LIB_MIN)
 #SCANF_LIB = $(SCANF_LIB_FLOAT)
-
-
 MATH_LIB = -lm
-
 
 # List any extra directories to look for libraries here.
 #     Each directory must be seperated by a space.
@@ -102,18 +100,12 @@ MATH_LIB = -lm
 #     For a directory that has spaces, enclose it in quotes.
 EXTRALIBDIRS = 
 
-
 #---------------- External Memory Options ----------------
-
-# 64 KB of external RAM, starting after internal RAM (ATmega128!),
-# used for variables (.data/.bss) and heap (malloc()).
-#EXTMEMOPTS = -Wl,-Tdata=0x801100,--defsym=__heap_end=0x80ffff
-
 # 64 KB of external RAM, starting after internal RAM (ATmega128!),
 # only used for heap (malloc()).
 #EXTMEMOPTS = -Wl,--section-start,.data=0x801100,--defsym=__heap_end=0x80ffff
 
-EXTMEMOPTS =
+EXTMEMOPTS = -Wl,--section-start,.bootloader.bus=0x003d80,--section-start,.bootloader=0x003e00
 
 #---------------- Linker Options ----------------
 #  -Wl,...:     tell GCC to pass this to linker.
@@ -124,8 +116,6 @@ LDFLAGS += $(EXTMEMOPTS)
 LDFLAGS += $(patsubst %,-L%,$(EXTRALIBDIRS))
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 #LDFLAGS += -T linker_script.x
-
-
 
 #---------------- Programming Options (avrdude) ----------------
 # Programming hardware
@@ -154,7 +144,6 @@ AVRDUDE_FLAGS += $(AVRDUDE_VERBOSE)
 AVRDUDE_FLAGS += $(AVRDUDE_ERASE_COUNTER)
 
 #---------------- Debugging Options ----------------
-
 # For simulavr only - target MCU frequency.
 DEBUG_MFREQ = $(F_CPU)
 
@@ -180,11 +169,7 @@ DEBUG_PORT = 4242
 #     avarice is running on a different computer.
 DEBUG_HOST = localhost
 
-
-
 #============================================================================
-
-
 # Define programs and commands.
 SHELL = sh
 CC = avr-gcc
@@ -279,8 +264,6 @@ sizeafter:
 	@if test -f $(TARGET).elf; then echo; echo $(MSG_SIZE_AFTER); $(ELFSIZE); \
 	2>/dev/null; echo; fi
 
-
-
 # Display compiler version information.
 gccversion : 
 	@$(CC) --version
@@ -342,7 +325,7 @@ extcoff: $(TARGET).elf
 %.hex: %.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -O $(FORMAT) -R .eeprom $< $@
+	$(OBJCOPY) -O $(FORMAT) -R .eeprom --gap-fill=0xff $< $@
 
 %.eep: %.elf
 	@echo
@@ -361,8 +344,6 @@ extcoff: $(TARGET).elf
 	@echo
 	@echo $(MSG_SYMBOL_TABLE) $@
 	$(NM) -n $< > $@
-
-
 
 # Create library from object files.
 .SECONDARY : $(TARGET).a
@@ -438,14 +419,11 @@ clean_list :
 	$(REMOVE) $(SRC:.c=.i)
 	$(REMOVEDIR) .dep
 
-
 # Create object files directory
 $(shell mkdir -p $(OBJDIR)/usbdrv 2>/dev/null)
 
-
 # Include the dependency files.
 -include $(shell mkdir .dep 2>/dev/null) $(wildcard .dep/*)
-
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \

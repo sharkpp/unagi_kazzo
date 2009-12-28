@@ -435,3 +435,34 @@ uint8_t vram_connection_get(void)
 	
 	return ret;
 }
+
+__attribute__ ((section(".bootloader.bus")))
+static void boot_address_set(uint16_t address)
+{
+	ADDRESSBUS_A0_A7_OUT = address & 0xff;
+	uint8_t high = (address & 0x7fff) >> 8; //mask A0-A14
+	if((address & (1 << 13)) == 0){ //if A13 == 0
+		high |= 0x80; //set /A13
+	}
+	DATABUS_OUT = high;
+	BUS_CONTROL_OUT = bit_get_negative(ADDRESS_HIGH_LATCH);
+	BUS_CONTROL_OUT = BUS_CLOSE;
+}
+
+__attribute__ ((section(".bootloader.bus")))
+void mcu_programdata_read(uint16_t address, uint16_t length, uint8_t *data)
+{
+	//BUS_CONTROL_OUT = BUS_CLOSE;
+	while(length != 0){
+		direction_write();
+		boot_address_set(address);
+		BUS_CONTROL_OUT = bit_get_negative(PPU_RD);
+		direction_read();
+		*data = DATABUS_IN;
+		data += 1;
+		BUS_CONTROL_OUT = BUS_CLOSE;
+		address += 1;
+		length--;
+	}
+	direction_write();
+}

@@ -2,10 +2,12 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <string.h>
+#include <avr/pgmspace.h>
 #include "usbdrv.h"
 #include "bus_access.h"
 #include "disk_access.h"
 #include "flashmemory.h"
+#include "mcu_program.h"
 #include "kazzo_request.h"
 
 //---- global variable ----
@@ -111,6 +113,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 	return 1; //when returns 0, sometime occours USB commnunication Error
 }
 
+//static uint8_t readbuffer[READ_PACKET_SIZE];
 usbMsgLen_t usbFunctionSetup(uchar d[8])
 {
 	static uint8_t readbuffer[READ_PACKET_SIZE];
@@ -169,8 +172,8 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		}
 		return FLASH_PACKET_SIZE;*/
 	case REQUEST_DISK_STATUS_GET:
-		usbMsgPtr = status;
-		return disk_status_get(status);
+		//usbMsgPtr = status;
+		return 0; //disk_status_get(status);
 	case REQUEST_DISK_READ: 
 		disk_init(DISK_READ);
 		return 0;
@@ -211,6 +214,18 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		status[0] = vram_connection_get();
 		usbMsgPtr = status;
 		return 1;
+	case REQUEST_FIRMWARE_VERSION:{
+		static const PROGMEM char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;// " " __TIME__;
+		memcpy_P(readbuffer, date, VERSION_STRING_SIZE);
+		usbMsgPtr = (uint8_t *) readbuffer;
+/*		static const char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;
+		usbMsgPtr = (uint8_t *) date;*/
+		return VERSION_STRING_SIZE;}
+	case REQUEST_FIRMWARE_PROGRAM:
+		wdt_disable();
+		usbDeviceDisconnect();
+		mcu_data_program(readbuffer, READ_PACKET_SIZE);
+		return 0;
 	}
 	return 0;
 }
@@ -223,18 +238,21 @@ int main(void)
 	request_both_write = wc_init;
 	request_cpu_program = wc_init;
 	request_ppu_program = wc_init;
-	uchar   i;
 
 	bus_init();
 	usbInit();
 	usbDeviceDisconnect();
-	i = 0;
-	while(--i){
-		wdt_reset();
-		_delay_ms(1);
+	{
+		uchar   i;
+		i = 0;
+		while(--i){
+			wdt_reset();
+			_delay_ms(1);
+		}
 	}
 	usbDeviceConnect();
 	sei();
+	wdt_enable(WDTO_500MS);
 	for(;;){
 		wdt_reset();
 		usbPoll();

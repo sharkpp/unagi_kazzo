@@ -1,11 +1,20 @@
 #ifndef __usbconfig_h_included__
 #define __usbconfig_h_included__
 
-#define USB_CFG_IOPORTNAME      D
-#define USB_CFG_DMINUS_BIT      4
-#define USB_CFG_DPLUS_BIT       2
-#define USB_CFG_CLOCK_KHZ       (F_CPU/1000)
-#define USB_CFG_CHECK_CRC       0
+#if PCB_REVISION == 1
+  #define USB_CFG_IOPORTNAME      D
+  #define USB_CFG_DMINUS_BIT      4
+  #define USB_CFG_DPLUS_BIT       2
+  #define USB_CFG_CLOCK_KHZ       (F_CPU/1000)
+  #define USB_CFG_CHECK_CRC       0
+#endif
+#if PCB_REVISION == 2
+  #define USB_CFG_IOPORTNAME      B
+  #define USB_CFG_DMINUS_BIT      0
+  #define USB_CFG_DPLUS_BIT       1
+  #define USB_CFG_CLOCK_KHZ       (F_CPU/1000)
+  #define USB_CFG_CHECK_CRC       0
+#endif
 
 #define USB_CFG_HAVE_INTRIN_ENDPOINT    0
 #define USB_CFG_HAVE_INTRIN_ENDPOINT3   0
@@ -118,14 +127,18 @@
 /* #define USB_INTR_ENABLE         GIMSK */
 /* #define USB_INTR_ENABLE_BIT     INT0 */
 /* #define USB_INTR_PENDING        GIFR */
-#define USB_INTR_PENDING_BIT    INTF0
-#define USB_INTR_CFG_SET        ((1 << ISC01) | (1 << ISC00) | (1 << ISC11)| (0 << ISC10)) 
-/* #define USB_INTR_VECTOR         SIG_INTERRUPT0 */
-
-#if 0//def atmega164p
-#define USB_INTR_CFG EICRA
-#define USB_INTR_PENDING EIFR
-#define USB_INTR_ENABLE         EIMSK
+#if PCB_REVISION == 1
+  #define USB_INTR_PENDING_BIT    INTF0
+  #define USB_INTR_CFG_SET        ((1 << ISC01) | (1 << ISC00) | (1 << ISC11)| (0 << ISC10)) 
+#endif
+#if PCB_REVISION == 2
+  #define USB_INTR_CFG            PCICR
+  #define USB_INTR_CFG_SET        (1 << PCIE0) 
+  #define USB_INTR_ENABLE         PCMSK0
+  #define USB_INTR_ENABLE_BIT     PCINT0
+  #define USB_INTR_PENDING        PCIFR
+  #define USB_INTR_PENDING_BIT    PCIF0
+  #define USB_INTR_VECTOR         SIG_PIN_CHANGE0
 #endif
 
 #endif /* __usbconfig_h_included__ */
