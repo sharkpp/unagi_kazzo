@@ -119,33 +119,29 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 	static uint8_t readbuffer[READ_PACKET_SIZE];
 	static uint8_t status[2];
 	usbRequest_t *rq = (void *)d;
-	uint8_t *data = readbuffer;
 	struct write_command *write_command;
 
 	switch((enum request) rq->bRequest){
 	case REQUEST_ECHO:
-		data[0] = rq->wValue.bytes[0];
-		data[1] = rq->wValue.bytes[1];
-		data[2] = rq->wIndex.bytes[0];
-		data[3] = rq->wIndex.bytes[1];
-		usbMsgPtr = data;
+		readbuffer[0] = rq->wValue.bytes[0];
+		readbuffer[1] = rq->wValue.bytes[1];
+		readbuffer[2] = rq->wIndex.bytes[0];
+		readbuffer[3] = rq->wIndex.bytes[1];
+		usbMsgPtr = readbuffer;
 		return 4;
 	case REQUEST_PHI2_INIT:
 		flash_both_idle();
 		phi2_init();
 		return 0;
 	case REQUEST_CPU_READ:
-		cpu_read(rq->wValue.word, rq->wLength.word, data);
+		cpu_read(rq->wValue.word, rq->wLength.word, readbuffer);
 		goto xxx_read;
 	case REQUEST_CPU_READ_6502:
-		cpu_read_6502(rq->wValue.word, rq->wLength.word, data);
+		cpu_read_6502(rq->wValue.word, rq->wLength.word, readbuffer);
 		goto xxx_read;
 	case REQUEST_PPU_READ:
-		ppu_read(rq->wValue.word, rq->wLength.word, data);
+		ppu_read(rq->wValue.word, rq->wLength.word, readbuffer);
 		goto xxx_read;
-	xxx_read:
-		usbMsgPtr = data;
-		return rq->wLength.word;
 	case REQUEST_CPU_WRITE_6502: case REQUEST_CPU_WRITE_FLASH:
 	case REQUEST_PPU_WRITE:
 		write_command = &request_both_write;
@@ -215,17 +211,22 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		usbMsgPtr = status;
 		return 1;
 	case REQUEST_FIRMWARE_VERSION:{
-		static const PROGMEM char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;// " " __TIME__;
-		memcpy_P(readbuffer, date, VERSION_STRING_SIZE);
-		usbMsgPtr = (uint8_t *) readbuffer;
-/*		static const char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;
-		usbMsgPtr = (uint8_t *) date;*/
-		return VERSION_STRING_SIZE;}
+		//static const PROGMEM char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;
+		static const PROGMEM char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __TIME__;
+		memcpy_P(readbuffer, date, rq->wLength.word);
+		goto xxx_read;}
 	case REQUEST_FIRMWARE_PROGRAM:
-		wdt_disable();
 		usbDeviceDisconnect();
-		mcu_data_program(readbuffer, READ_PACKET_SIZE);
+		mcu_data_program(readbuffer, READ_PACKET_SIZE, rq->wValue.word, rq->wIndex.word);
 		return 0;
+	case REQUEST_FIRMWARE_DOWNLOAD:{
+		const /*PROGMEM*/ uint8_t *firm = (const /*PROGMEM*/ uint8_t *) rq->wValue.word;
+		memcpy_P(readbuffer, firm, rq->wLength.word);
+		}
+		goto xxx_read;
+	xxx_read:
+		usbMsgPtr = readbuffer;
+		return rq->wLength.word;
 	}
 	return 0;
 }
@@ -251,8 +252,8 @@ int main(void)
 		}
 	}
 	usbDeviceConnect();
-	sei();
 	wdt_enable(WDTO_500MS);
+	sei();
 	for(;;){
 		wdt_reset();
 		usbPoll();

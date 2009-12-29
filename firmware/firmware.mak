@@ -13,7 +13,7 @@ ASRC = $(USBDRIVER)/usbdrvasm.S
 
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
-OPT = 2
+OPT = s
 
 # Debugging format.
 #     Native formats for AVR-GCC's -g are dwarf-2 [default] or stabs.
