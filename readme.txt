@@ -67,6 +67,10 @@ CP1  |10uF electric capacitor
 JP1  |toggle switch
 JP2  |push switch
 
+CN4  |
+Tyco Electronics  5530843-8 13.97mm
+Sullins Connector Solutions ECC36DJWN 15.49mm
+Sullins Connector Solutions ECC36DJBN 13.97mm
 ----pin assignment----
 See schematics for switch, register, diode and capacitor connection.
 

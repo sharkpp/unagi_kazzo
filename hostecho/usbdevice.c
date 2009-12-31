@@ -78,18 +78,19 @@ static void device_write(usb_dev_handle *handle, enum request w, enum index inde
 	if(cnt != length){
 		puts(__FUNCTION__);
 		puts(usb_strerror());
-		exit(1);
+		//exit(1);
 	}
 	free(d);
 }
 
-void write_memory(usb_dev_handle *handle, enum request r, long address, long length, const uint8_t *data)
+void write_memory(usb_dev_handle *handle, enum request r, enum index index, long address, long length, const uint8_t *data)
 {
-	while(length != 0){
+	//To accept length == 0, use do-while loop
+	do{
 		long l = length >= FLASH_PACKET_SIZE ? FLASH_PACKET_SIZE : length;
-		device_write(handle, r, INDEX_IMPLIED, address, l, data);
+		device_write(handle, r, index, address, l, data);
 		address += l;
 		data += l;
 		length -= l;
-	}
+	}while(length != 0);
 }

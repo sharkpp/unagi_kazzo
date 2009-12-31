@@ -3,7 +3,13 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h> 
 #include <avr/wdt.h>
+#include "kazzo_request.h"
 #include "bus_access.h"
+#include "mcu_program.h"
+
+#if SPM_PAGESIZE > READ_PACKET_SIZE 
+ #error READ_PACKET_SIZE is few capacity
+#endif
 /*
 firmware bootloader sequence
 - User insert a cartrige which has charcter RAM. eg. UNROM or SGROM
@@ -11,13 +17,13 @@ firmware bootloader sequence
 - Host receive and compare charcter memory image.
 - Firmware reprogram by REQUEST_FIRMWARE_PROGRAM.
 
-compiler notice/ WinAVR 20080610
-compiler produces bad object with optimize option -O2
-use -Os
+MEGA164P-20[AP]U
+ISP programming -> REQUEST_FIRMWARE_PROGRAM -> flash memory is programmed 2 pages only...
+ISP programming -> power off->on -> REQUEST_FIRMWARE_PROGRAM -> flash memory is programmed all pages.
 */
 __attribute__((noreturn))
-BOOTLOADER_SECTION
-void mcu_data_program(uint8_t *buf, const uint16_t bufsize, uint16_t address, uint16_t length)
+__attribute__ ((section(".bootloader.programmer")))
+static void mcu_data_program(uint8_t *buf, uint16_t address, uint16_t length)
 {
 	uint16_t offset = 0;
 	int page;
@@ -41,9 +47,18 @@ void mcu_data_program(uint8_t *buf, const uint16_t bufsize, uint16_t address, ui
 		offset += SPM_PAGESIZE;
 		address += SPM_PAGESIZE;
 	}
-	boot_rww_enable();
-	sei();
-	wdt_enable(WDTO_500MS);
+	if(0){ //force re-turn power on. keep watchdog disable
+		boot_rww_enable();
+		sei();
+		wdt_enable(WDTO_500MS);
+	}
 endless: //wait watchdog interruptting reset
 	goto endless;
 }
+
+__attribute__ ((section(".bootloader.version")))
+const struct bootloader_assign BOOTLOADER_ASSIGN = {
+	.version = "bootlader 0.1.0",
+	.programmer = mcu_data_program
+};
+

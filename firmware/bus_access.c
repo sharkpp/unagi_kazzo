@@ -452,11 +452,19 @@ static void boot_address_set(uint16_t address)
 __attribute__ ((section(".bootloader.bus")))
 void mcu_programdata_read(uint16_t address, uint16_t length, uint8_t *data)
 {
-	//BUS_CONTROL_OUT = BUS_CLOSE;
 	while(length != 0){
 		direction_write();
-		boot_address_set(address);
-		BUS_CONTROL_OUT = bit_get_negative(PPU_RD);
+		if(address < 0x2000){ //PPU CHR-RAM
+			boot_address_set(address);
+			BUS_CONTROL_OUT = bit_get_negative(PPU_RD);
+		}else{ //CPU W-RAM
+			address &= 0x1fff;
+			address |= 0x6000;
+			boot_address_set(address);
+/*			if((address & 0x8000) != 0){
+				BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
+			}*/
+		}
 		direction_read();
 		*data = DATABUS_IN;
 		data += 1;

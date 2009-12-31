@@ -1,7 +1,7 @@
 LIBUSB = d:/dev/LibUSB-Win32
 KAZZO = ../firmware
 
-OBJECT = opendevice.o hostecho.o usbdevice.o
+OBJECT = opendevice.o hostecho.o usbdevice.o ihex.o file.o
 
 CC = gcc
 CFLAG = -I$(LIBUSB)/include -I$(KAZZO) -Wall -Werror

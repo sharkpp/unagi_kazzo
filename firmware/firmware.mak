@@ -1,7 +1,7 @@
 F_CPU = 16000000
 #FORMAT = srec
-#FORMAT = ihex
-FORMAT = binary
+FORMAT = ihex
+#FORMAT = binary
 
 # Target file name (without extension).
 OBJDIR = ./$(TARGET)
@@ -13,7 +13,7 @@ ASRC = $(USBDRIVER)/usbdrvasm.S
 
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
-OPT = s
+OPT = 2
 
 # Debugging format.
 #     Native formats for AVR-GCC's -g are dwarf-2 [default] or stabs.
@@ -105,7 +105,10 @@ EXTRALIBDIRS =
 # only used for heap (malloc()).
 #EXTMEMOPTS = -Wl,--section-start,.data=0x801100,--defsym=__heap_end=0x80ffff
 
-EXTMEMOPTS = -Wl,--section-start,.bootloader.bus=0x003d80,--section-start,.bootloader=0x003e00
+EXTMEMOPTS = -Wl,--section-start,.firmware.version=0x003780
+EXTMEMOPTS += -Wl,--section-start,.bootloader.version=0x003d00
+EXTMEMOPTS += -Wl,--section-start,.bootloader.bus=0x003d80
+EXTMEMOPTS += -Wl,--section-start,.bootloader.programmer=0x003e00
 
 #---------------- Linker Options ----------------
 #  -Wl,...:     tell GCC to pass this to linker.

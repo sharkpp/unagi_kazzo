@@ -211,14 +211,16 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		usbMsgPtr = status;
 		return 1;
 	case REQUEST_FIRMWARE_VERSION:{
-		//static const PROGMEM char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;
-		static const PROGMEM char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __TIME__;
+		__attribute__ ((section(".firmware.version")))
+		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __TIME__;
 		memcpy_P(readbuffer, date, rq->wLength.word);
 		goto xxx_read;}
-	case REQUEST_FIRMWARE_PROGRAM:
+	case REQUEST_FIRMWARE_PROGRAM:{
+		void (*t)(uint8_t *buf, uint16_t address, uint16_t length);
 		usbDeviceDisconnect();
-		mcu_data_program(readbuffer, READ_PACKET_SIZE, rq->wValue.word, rq->wIndex.word);
-		return 0;
+		memcpy_P(&t, &BOOTLOADER_ASSIGN.programmer, sizeof(BOOTLOADER_ASSIGN.programmer));
+		(*t)(readbuffer, rq->wValue.word, rq->wIndex.word);
+		}return 0;
 	case REQUEST_FIRMWARE_DOWNLOAD:{
 		const /*PROGMEM*/ uint8_t *firm = (const /*PROGMEM*/ uint8_t *) rq->wValue.word;
 		memcpy_P(readbuffer, firm, rq->wLength.word);
