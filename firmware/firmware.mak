@@ -328,7 +328,8 @@ extcoff: $(TARGET).elf
 %.hex: %.elf
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -O $(FORMAT) -R .eeprom --gap-fill=0xff $< $@
+	$(OBJCOPY) -O $(FORMAT) -R .eeprom $< $@
+# --gap-fill=0xff
 
 %.eep: %.elf
 	@echo

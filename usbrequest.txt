@@ -1,5 +1,5 @@
 Famicom Cartridge Bus Simulator: 'kazzo'
-Firmware USB Request Reference
+Firmware USB Request Reference version 0.1.1
 
 ----Word Definitions----
 * CPU Memory Region
@@ -222,3 +222,35 @@ being used, the following data is returned:
 0x05: vertical mirroring
 0x09: horizonal mirroring
 
+REQUEST_FIRMWARE_VERSION
+R/W: read
+Arguments:
+ wLength: must be set as a value of 0x20
+ wValue:  not used
+ wIndex:  not used
+Returns: version infomation Null-terminated string
+Description:
+The firmware returns firmware version C-style string.
+
+REQUEST_FIRMWARE_PROGRAM
+R/W: write
+Arguments:
+ wLength: must be set as a value of 0
+ wValue: target programming address for AVR
+ wIndex: programming length
+Description:
+The firmware is programmed by bootloader. When the host send the 
+request, USB connection will be disconnected. After disconnection, 
+firmware programs new firmware via catrdige-placed W-RAM and CHR-RAM.
+The host have to send a firmware image to W-RAM (offset 0x2000 to 
+0x3fff) and CHR-RAM (offset 0 to 0x1fff) on SNROM.
+
+REQUEST_FIRMWARE_DOWNLOAD
+R/W: read
+Arguments:
+ wLength: read length
+ wValue:  target address for AVR
+ wIndex:  not used
+Returns: read data
+Description:
+The firmware returns firmware image via read buffer.

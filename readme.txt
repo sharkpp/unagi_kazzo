@@ -1,5 +1,6 @@
 famicom cartridge bus simulator 'kazzo'
 unagi development team / 2009.10.08
+firmware version 0.1.1 / 2010.01.02
 
 ----features----
 - USB communication to PC
@@ -25,14 +26,14 @@ windows_driver/
 kazzo_test.exe
   loop back test client binary for Windows
 kazzo_mega16.hex kazzo_mega164p.hex
-  firmware hex file written in S Record
+  firmware hex file written in Intel-Hex Record
 kazzo_schematics.png
   schematics graphic data
   notice! U1 pin number is assigned ATmega16 QFP.
 readme.txt
   this file
 usbrequest.txt
-  It was written how to request to kazzo.
+  It is written how to request to kazzo.
 COPYING
   GPL v2 licencing document
 
@@ -67,10 +68,6 @@ CP1  |10uF electric capacitor
 JP1  |toggle switch
 JP2  |push switch
 
-CN4  |
-Tyco Electronics  5530843-8 13.97mm
-Sullins Connector Solutions ECC36DJWN 15.49mm
-Sullins Connector Solutions ECC36DJBN 13.97mm
 ----pin assignment----
 See schematics for switch, register, diode and capacitor connection.
 
@@ -121,5 +118,5 @@ VRAM A10|18 48|VRAM CS#     D5| 7 14|A13      CPU IRQ#|17 24|CPU R/W
 - CPU A14 and PPU A13# are uniq address buses. 
 - U1 can substitute ATmega16.
 - SOUND IN and SOUND OUT has no connection.
-- If you need power switch, short JP1.
-- If you need reset switch, open JP2.
+- If you don't need power switch, short JP1.
+- If you don't need reset switch, open JP2.

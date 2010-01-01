@@ -5,8 +5,8 @@ OBJECT = opendevice.o hostecho.o usbdevice.o ihex.o file.o
 
 CC = gcc
 CFLAG = -I$(LIBUSB)/include -I$(KAZZO) -Wall -Werror
-#CFLAG += -O2 
-CFLAG += -O0 -g
+CFLAG += -O2 
+#CFLAG += -O0 -g
 LIB = -L$(LIBUSB)/lib/gcc -lusb
 
 PROGRAM = ../kazzo_test.exe

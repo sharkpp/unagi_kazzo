@@ -12,9 +12,9 @@
 #endif
 /*
 firmware bootloader sequence
-- User insert a cartrige which has charcter RAM. eg. UNROM or SGROM
-- Host send new firmware image with REQUEST_PPU_WRITE.
-- Host receive and compare charcter memory image.
+- User insert a cartrige which has charcter RAM and CPU work RAM.
+- Host send new firmware image with REQUEST_PPU_WRITE and REQUEST_CPU_WRITE_6502.
+- Host receive and compare translated memory image.
 - Firmware reprogram by REQUEST_FIRMWARE_PROGRAM.
 
 MEGA164P-20[AP]U
@@ -58,7 +58,7 @@ endless: //wait watchdog interruptting reset
 
 __attribute__ ((section(".bootloader.version")))
 const struct bootloader_assign BOOTLOADER_ASSIGN = {
-	.version = "bootlader 0.1.0",
+	.version = "kazzo loader 0.1.0",
 	.programmer = mcu_data_program
 };
 

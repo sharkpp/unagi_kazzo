@@ -110,7 +110,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 	default:
 		break;
 	}
-	return 1; //when returns 0, sometime occours USB commnunication Error
+	return 1;
 }
 
 //static uint8_t readbuffer[READ_PACKET_SIZE];
@@ -212,7 +212,7 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		return 1;
 	case REQUEST_FIRMWARE_VERSION:{
 		__attribute__ ((section(".firmware.version")))
-		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __TIME__;
+		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;
 		memcpy_P(readbuffer, date, rq->wLength.word);
 		goto xxx_read;}
 	case REQUEST_FIRMWARE_PROGRAM:{

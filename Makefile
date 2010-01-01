@@ -3,10 +3,11 @@ MCU_16 = MCU=atmega16 TARGET=kazzo_mega16 PCB_REVISION=1
 MCU_88 = MCU=atmega88 TARGET=kazzo_mega88 PCB_REVISION=2
 SOURCE_ROOT = Makefile COPYING kazzo_test.exe kazzo_schematics.png readme.txt usbrequest.txt kazzo_mega16.hex kazzo_mega164p.hex
 SOURCE_FIRMWARE = \
-	avr_main.c bus_access.c disk_access.c flashmemory.c \
-	bus_access.h disk_access.h flashmemory.h kazzo_request.h kazzo_task.h type.h usbconfig.h \
+	avr_main.c bus_access.c disk_access.c flashmemory.c mcu_program.c \
+	bus_access.h disk_access.h flashmemory.h kazzo_request.h kazzo_task.h type.h usbconfig.h mcu_program.h \
 	firmware.mak usbdrv/*
-SOURCE_ECHO = Makefile hostecho.c opendevice.c opendevice.h
+SOURCE_ECHO = Makefile file.c hostecho.c ihex.c opendevice.c usbdevice.c \
+	file.h ihex.h opendevice.h usbdevice.h
 SOURCE_MODULE = reader_kazzo.c usb_device.c reader_kazzo.h reader_master.h usb_device.h
 WINDOWS_DRIVER = libusb0.dll kazzo.inf libusb0.sys
 
