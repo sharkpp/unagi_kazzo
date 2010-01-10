@@ -212,14 +212,26 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		return 1;
 	case REQUEST_FIRMWARE_VERSION:{
 		__attribute__ ((section(".firmware.version")))
-		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.1 " __DATE__;
+		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.2 / " __DATE__;
 		memcpy_P(readbuffer, date, rq->wLength.word);
 		goto xxx_read;}
 	case REQUEST_FIRMWARE_PROGRAM:{
 		void (*t)(uint8_t *buf, uint16_t address, uint16_t length);
-		usbDeviceDisconnect();
-		memcpy_P(&t, &BOOTLOADER_ASSIGN.programmer, sizeof(BOOTLOADER_ASSIGN.programmer));
-		(*t)(readbuffer, rq->wValue.word, rq->wIndex.word);
+		static const char signature[] = {'k', 'a', 'z', 'z', 'o', '1', '6'};
+		const uint16_t address = rq->wValue.word;
+		const uint16_t length = rq->wIndex.word;
+		if(address >= 0x3800){
+			return 0;
+		}
+		if(length + address > 0x3800){
+			return 0;
+		}
+		cpu_read(0x3780 - 0x2000 + 0x6000, sizeof(signature), readbuffer);
+		if(memcmp(readbuffer, signature, sizeof(signature)) == 0){
+			usbDeviceDisconnect();
+			memcpy_P(&t, &BOOTLOADER_ASSIGN.programmer, sizeof(BOOTLOADER_ASSIGN.programmer));
+			(*t)(readbuffer, address, length);
+		}
 		}return 0;
 	case REQUEST_FIRMWARE_DOWNLOAD:{
 		const /*PROGMEM*/ uint8_t *firm = (const /*PROGMEM*/ uint8_t *) rq->wValue.word;
