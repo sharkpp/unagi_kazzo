@@ -213,6 +213,23 @@ void ppu_read(uint16_t address, uint16_t length, uint8_t *data)
 
 enum compare_status cpu_compare(uint16_t address, uint16_t length, const uint8_t *data)
 {
+	while(length != 0){
+		BUS_CONTROL_OUT = BUS_CLOSE;
+		direction_write();
+		address_set(address);
+		BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
+		direction_read();
+		if(DATABUS_IN != *data){
+			BUS_CONTROL_OUT = BUS_CLOSE;
+			direction_write();
+			return NG;
+		}
+		data += 1;
+		address += 1;
+		length--;
+	}
+	BUS_CONTROL_OUT = BUS_CLOSE;
+	direction_write();
 	return OK;
 }
 enum compare_status ppu_compare(uint16_t address, uint16_t length, const uint8_t *data)

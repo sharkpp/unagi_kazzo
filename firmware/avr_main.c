@@ -18,19 +18,6 @@ static struct write_command{
 }request_both_write, request_cpu_program, request_ppu_program;
 
 //---- function start ----
-static void flash_config_set(const uint8_t *t, void (*set)(uint16_t, uint16_t, uint16_t, uint16_t))
-{
-	uint16_t c000x, c2aaa, c5555, unit;
-	c000x = t[0];
-	c000x |= t[1] << 8;
-	c2aaa = t[2];
-	c2aaa |= t[3] << 8;
-	c5555 = t[4];
-	c5555 |= t[5] << 8;
-	unit = t[6];
-	unit |= t[7] << 8;
-	(*set)(c000x, c2aaa, c5555, unit);
-}
 /*static uint8_t cpu_buffer[FLASH_PACKET_SIZE];
 static uint8_t ppu_buffer[FLASH_PACKET_SIZE];*/
 uchar usbFunctionWrite(uchar *data, uchar len)
@@ -55,7 +42,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		goto BOTH_NEXT;
 	BOTH_NEXT:{
 		request_both_write.offset += length;
-		int ret = request_both_write.offset == request_both_write.length;
+		uchar ret = request_both_write.offset == request_both_write.length;
 		if(ret){
 			request_both_write.request = REQUEST_NOP;
 		}
@@ -67,17 +54,12 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 	switch(request_cpu_program.request){
 	case REQUEST_FLASH_PROGRAM:
 	case REQUEST_FLASH_CONFIG_SET:{
-		static uint8_t *w = cpu_buffer; //this is static pointer! be careful.
-		if(request_cpu_program.offset == 0){
-			w = cpu_buffer;
-		}
-		memcpy(w, data, length);
-		w += length;
+		memcpy(cpu_buffer + request_cpu_program.offset, data, length);
 		request_cpu_program.offset += length;
-		int ret = request_cpu_program.offset == request_cpu_program.length;
+		uchar ret = request_cpu_program.offset == request_cpu_program.length;
 		if(ret){
 			if(request_cpu_program.request == REQUEST_FLASH_CONFIG_SET){
-				flash_config_set(cpu_buffer, flash_cpu_config);
+				flash_cpu_config(cpu_buffer);
 			}else{
 				flash_cpu_program(request_cpu_program.address, request_cpu_program.length, cpu_buffer);
 			}
@@ -90,17 +72,12 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 	switch(request_ppu_program.request){
 	case REQUEST_FLASH_PROGRAM:
 	case REQUEST_FLASH_CONFIG_SET:{
-		static uint8_t *w = ppu_buffer; //static pointer
-		if(request_ppu_program.offset == 0){
-			w = ppu_buffer;
-		}
-		memcpy(w, data, length);
-		w += length;
+		memcpy(ppu_buffer + request_ppu_program.offset, data, length);
 		request_ppu_program.offset += length;
-		int ret = request_ppu_program.offset == request_ppu_program.length;
+		uchar ret = request_ppu_program.offset == request_ppu_program.length;
 		if(ret){
 			if(request_ppu_program.request == REQUEST_FLASH_CONFIG_SET){
-				flash_config_set(ppu_buffer, flash_ppu_config);
+				flash_ppu_config(ppu_buffer);
 			}else{
 				flash_ppu_program(request_ppu_program.address, request_ppu_program.length, ppu_buffer);
 			}

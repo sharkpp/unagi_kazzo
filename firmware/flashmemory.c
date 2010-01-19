@@ -15,6 +15,7 @@ struct flash_seqence{
 		PROGRAM, TOGGLE_FIRST, TOGGLE_CHECK
 	} status, request;
 	uint16_t command_000x, command_2aaa, command_5555;
+	uint8_t retry_enable;
 	uint16_t address, length, program_unit;
 	const uint8_t *data;
 	uint8_t toggle, retry_count;
@@ -45,26 +46,38 @@ void flash_both_idle(void)
 	seqence_cpu.status = IDLE;
 	seqence_ppu.status = IDLE;
 }
-static void config_set(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit, struct flash_seqence *t)
+static inline uint16_t unpack_short_le(const uint8_t *t)
 {
-	t->command_000x = c000x;
-	t->command_2aaa = c2aaa;
-	t->command_5555 = c5555;
-	t->program_unit = unit;
-	t->program_command[0].address = c5555;
+	uint16_t r = t[0];
+	r |= t[1] << 8;
+	return r;
+}
+static void config_set(const uint8_t *data, struct flash_seqence *t)
+{
+	t->command_000x = unpack_short_le(data);
+	data += 2;
+	t->command_2aaa = unpack_short_le(data);
+	data += 2;
+	t->command_5555 = unpack_short_le(data);
+	data += 2;
+	t->program_unit = unpack_short_le(data);
+	data += 2;
+	t->retry_enable = *data;
+
+	t->program_command[0].address = t->command_5555;
 	t->program_command[0].data = 0xaa;
-	t->program_command[1].address = c2aaa;
+	t->program_command[1].address = t->command_2aaa;
 	t->program_command[1].data = 0x55;
-	t->program_command[2].address = c5555;
+	t->program_command[2].address = t->command_5555;
 	t->program_command[2].data = 0xa0;
 };
-void flash_cpu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit)
+void flash_cpu_config(const uint8_t *data)
 {
-	config_set(c000x, c2aaa, c5555, unit, &seqence_cpu);
+	config_set(data, &seqence_cpu);
 }
-void flash_ppu_config(uint16_t c000x, uint16_t c2aaa, uint16_t c5555, uint16_t unit)
+void flash_ppu_config(const uint8_t *data)
 {
-	config_set(c000x, c2aaa, c5555, unit, &seqence_ppu);
+	config_set(data, &seqence_ppu);
 }
 
 static void program_assign(enum status status, uint16_t address, uint16_t length, const uint8_t *data, struct flash_seqence *t)
@@ -175,16 +188,14 @@ static void toggle_check(struct flash_seqence *t)
 	uint8_t d;
 	t->reader(t->address, 1, &d);
 	if(t->toggle == (d & 0x40)){
-		if((t->program_unit != 1) && (t->request == PROGRAM)){ //page program device retry
-			if(t->retry_count >= 20){
-				if(t->compare(t->address, t->program_unit, t->data) == NG){
-					t->retry_count += 1;
-					t->status = PROGRAM;
-					return;
-				}
+		if((t->retry_enable != 0) && (t->request == PROGRAM) && (t->retry_count < 20)){
+			if(t->compare(t->address, t->program_unit, t->data) == NG){
+				t->retry_count += 1;
+				t->status = PROGRAM;
+				return;
 			}
-			t->retry_count = 0;
 		}
+		t->retry_count = 0;
 		t->address += t->program_unit;
 		t->data += t->program_unit;
 		t->length -= t->program_unit;
