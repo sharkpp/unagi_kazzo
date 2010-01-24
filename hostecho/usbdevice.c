@@ -75,10 +75,10 @@ static void device_write(usb_dev_handle *handle, enum request w, enum index inde
 		w, address, 
 		index, d, length, TIMEOUT
 	);
-	if(cnt != length){
+	if(0 && cnt != length){
 		puts(__FUNCTION__);
 		puts(usb_strerror());
-		//exit(1);
+		exit(1);
 	}
 	free(d);
 }

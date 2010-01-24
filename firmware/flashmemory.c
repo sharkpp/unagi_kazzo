@@ -52,17 +52,21 @@ static inline uint16_t unpack_short_le(const uint8_t *t)
 	r |= t[1] << 8;
 	return r;
 }
-static void config_set(const uint8_t *data, struct flash_seqence *t)
+static void config_set(const uint8_t *data, uint16_t length, struct flash_seqence *t)
 {
 	t->command_000x = unpack_short_le(data);
-	data += 2;
+	data += sizeof(uint16_t);
 	t->command_2aaa = unpack_short_le(data);
-	data += 2;
+	data += sizeof(uint16_t);
 	t->command_5555 = unpack_short_le(data);
-	data += 2;
+	data += sizeof(uint16_t);
 	t->program_unit = unpack_short_le(data);
-	data += 2;
-	t->retry_enable = *data;
+	data += sizeof(uint16_t);
+	if(length < 9){ //support client 0.6.0
+		t->retry_enable = 0;
+	}else{
+		t->retry_enable = *data;
+	}
 
 	t->program_command[0].address = t->command_5555;
 	t->program_command[0].data = 0xaa;
@@ -71,13 +75,13 @@ static void config_set(const uint8_t *data, struct flash_seqence *t)
 	t->program_command[2].address = t->command_5555;
 	t->program_command[2].data = 0xa0;
 };
-void flash_cpu_config(const uint8_t *data)
+void flash_cpu_config(const uint8_t *data, uint16_t length)
 {
-	config_set(data, &seqence_cpu);
+	config_set(data, length, &seqence_cpu);
 }
-void flash_ppu_config(const uint8_t *data)
+void flash_ppu_config(const uint8_t *data, uint16_t length)
 {
-	config_set(data, &seqence_ppu);
+	config_set(data, length, &seqence_ppu);
 }
 
 static void program_assign(enum status status, uint16_t address, uint16_t length, const uint8_t *data, struct flash_seqence *t)

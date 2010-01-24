@@ -1,5 +1,5 @@
 Famicom Cartridge Bus Simulator: 'kazzo'
-Firmware USB Request Reference version 0.1.1
+Firmware USB Request Reference version 0.1.3
 
 ----Word Definitions----
 * CPU Memory Region
@@ -119,7 +119,7 @@ buses. Data is sent in sequential order.
 REQUEST_FLASH_CONFIG_SET
 R/W: write (immediate)
 Arguments:
- wLength: must be set as a value of 8
+ wLength: must be set as a value of 9 or 8
  wValue:  not used
  wIndex:  target memory region. INDEX_CPU or INDEX_PPU
  bData:   programmed data for current memory region
@@ -131,6 +131,8 @@ Arguments:
  bData[5] bit8-15 for command address 0x5555 (c5555)
  bData[6] bit0-7 for programming unit length
  bData[7] bit8-15 for programming unit length
+ bData[8] programming retry flag (0:disable, 1: enable / if wLength is 
+          8, firmware set 0)
 Returns: nothing
 Description:
 This request defines flash memory command addresses for the target 

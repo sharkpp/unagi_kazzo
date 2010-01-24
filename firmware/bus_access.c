@@ -32,7 +32,8 @@ enum iobit_bus_control{
 };
 //when cpu_write_flash, phi2 must be low. when phi2 is high, mmc3 and vrc4 changes bank.
 enum {
-	BUS_CLOSE = 0xff
+	BUS_CLOSE = 0xff,
+	ADDRESS_CLOSE = 0x3fff //CPU and PPU are mapped internal registers, cartridge closes buses
 };
 /*PDx: use input, empty pin is output*/
 #define USB_MISC_DIR IO_DIRECTION(D)
@@ -48,6 +49,24 @@ static inline uint8_t bit_get_negative(enum iobit_bus_control bit)
 	return ~ret;
 }
 
+/*
+address high databus assignment
+D0-D5: CPU and PPU A8-A13
+D6: CPU A14
+D7: PPU /A13
+*/
+static void address_set(uint16_t address)
+{
+	ADDRESSBUS_A0_A7_OUT = address & 0xff;
+	uint8_t high = (address & 0x7fff) >> 8; //mask A0-A14
+	if((address & (1 << 13)) == 0){ //if A13 == 0
+		high |= 0x80; //set /A13
+	}
+	DATABUS_OUT = high;
+	BUS_CONTROL_OUT = bit_get_negative(ADDRESS_HIGH_LATCH);
+	BUS_CONTROL_OUT = BUS_CLOSE;
+}
+
 void bus_init(void)
 {
 	ADDRESSBUS_A0_A7_DIR = 0xff;
@@ -57,6 +76,8 @@ void bus_init(void)
 	BUS_CONTROL_OUT = BUS_CLOSE;
 	USB_MISC_DIR = (0b1100 << 4) | 0b0011; //empty pin use OUT
 	USB_MISC_PULLUP = (1 << CPU_IRQ) | (1 << VRAM_A10);
+	
+	address_set(ADDRESS_CLOSE);
 }
 
 /*
@@ -82,23 +103,6 @@ void phi2_update(void)
 	}
 	BUS_CONTROL_OUT = c;
 	i += 1;
-}
-/*
-address high databus assignment
-D0-D5: CPU and PPU A8-A13
-D6: CPU A14
-D7: PPU /A13
-*/
-static void address_set(uint16_t address)
-{
-	ADDRESSBUS_A0_A7_OUT = address & 0xff;
-	uint8_t high = (address & 0x7fff) >> 8; //mask A0-A14
-	if((address & (1 << 13)) == 0){ //if A13 == 0
-		high |= 0x80; //set /A13
-	}
-	DATABUS_OUT = high;
-	BUS_CONTROL_OUT = bit_get_negative(ADDRESS_HIGH_LATCH);
-	BUS_CONTROL_OUT = BUS_CLOSE;
 }
 static inline void direction_write(void)
 {
@@ -191,7 +195,7 @@ void cpu_read_6502(uint16_t address, uint16_t length, uint8_t *data)
 		address += 1;
 		length--;
 	}
-	direction_write();
+	address_set(ADDRESS_CLOSE);
 }
 
 void ppu_read(uint16_t address, uint16_t length, uint8_t *data)
@@ -287,6 +291,7 @@ void cpu_write_6502_nowait(uint16_t address, uint16_t length, const uint8_t *dat
 		address += 1;
 		length--;
 	}
+	address_set(ADDRESS_CLOSE);
 }
 
 /*
@@ -341,6 +346,7 @@ void cpu_write_flash(uint16_t address, uint16_t length, const uint8_t *data)
 		address += 1;
 		length--;
 	}
+	address_set(ADDRESS_CLOSE);
 }
 
 void cpu_write_flash_order(const struct flash_order *t)
@@ -352,6 +358,7 @@ void cpu_write_flash_order(const struct flash_order *t)
 		t++;
 		length--;
 	}
+	address_set(ADDRESS_CLOSE);
 }
 /*
 NTSC hardware timing
@@ -399,6 +406,7 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 		address += 1;
 		length--;
 	}
+	address_set(ADDRESS_CLOSE);
 }
 
 static inline void ppu_write_waveform(uint16_t address, uint8_t data)
@@ -489,5 +497,5 @@ void mcu_programdata_read(uint16_t address, uint16_t length, uint8_t *data)
 		address += 1;
 		length--;
 	}
-	direction_write();
+	boot_address_set(ADDRESS_CLOSE);
 }

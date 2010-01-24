@@ -1,22 +1,22 @@
 famicom cartridge bus simulator 'kazzo'
 unagi development team / 2009.10.08
-firmware version 0.1.1 / 2010.01.02
+firmware version 0.1.2 / 2010.01.10
 
 ----features----
-- USB communication to PC
-- read and write access for ROM cartridge
-- program access for flash memory cartridge
-- composed of few parts
+- USB-to-PC communication
+- ROM cartridge read and write access
+- programming access for flash memory cartridge
+- composed of few, mostly off-the-shelf parts
 - firmware is powered by V-USB
   http://www.obdev.at/products/vusb/index.html
-- firmware and host software are opensource, licenced by GPL v2
+- firmware and host software are open source, licenced by GPL v2
 
-kazzo was named from Japanese traditional fish '鰹'.
+kazzo was named after the Japanese traditional fish '鰹'.
 
 ----files----
 firmware/
-  firmware source code and Makefile. To complile, required WinAVR 
-  enviroment.
+  firmware source code and Makefile. In order to complile, WinAVR 
+  environment is required.
 hostecho/
   source codes for kazzo_test.exe
 hostmodule/
@@ -26,19 +26,19 @@ windows_driver/
 kazzo_test.exe
   loop back test client binary for Windows
 kazzo_mega16.hex kazzo_mega164p.hex
-  firmware hex file written in Intel-Hex Record
+  firmware hex file written in Intel-Hex Record format
 kazzo_schematics.png
-  schematics graphic data
-  notice! U1 pin number is assigned ATmega16 QFP.
+  schematics graphic file
+  (note: U1 pin number is assigned as ATmega16 QFP.)
 readme.txt
   this file
 usbrequest.txt
-  It is written how to request to kazzo.
+  directions on how to send USB request commands to kazzo.
 COPYING
   GPL v2 licencing document
 
-Host software 'unagi' is not included in this package. 'unagi's binary 
-and source codes are available from official project page.
+Host software 'unagi' is not included in this package. unagi's binary 
+and source codes are available from the official project page.
 http://unagi.sourceforge.jp/
 
 ----AVR fusebit configuration----
@@ -57,7 +57,7 @@ U1   |ATmega164P or ATmega16
 U2   |74HC574
 CN1  |type B female USB socket
 CN2  |3x2 pin header, 2.54 mm spacing
-CN3  |30x2 pin cardedge connecter, 2.54 mm spacing
+CN3  |30x2 pin cartridge connector, 2.54 mm spacing
 R1,R2|68 ohm register
 R3   |1.5 kohm register
 R4   |30 kohm register
@@ -69,14 +69,14 @@ JP1  |toggle switch
 JP2  |push switch
 
 ----pin assignment----
-See schematics for switch, register, diode and capacitor connection.
+See the schematics file for switch, register, diode and capacitor connection.
 
 CN3: cartridge connector CN1: USB socket type B
         +-----+                +---+              U1: ATmega164P (DIP)
      GND| 1 31|+5V          +5V|1 4|GND               +--v--+
  CPU A11| 2 32|CPU PHI2      D-|2 3|D+              D0| 1 40|A0
  CPU A10| 3 33|CPU A12         +---+                D1| 2 39|A1
-  CPU A9| 4 34|CPU A13   CN2: ISP conncetor         D2| 3 38|A2
+  CPU A9| 4 34|CPU A13   CN2: ISP connector         D2| 3 38|A2
   CPU A8| 5 35|CPU A14         +---+                D3| 4 37|A3
   CPU A7| 6 36|CPU D7      MISO|1 2|Vcc             D4| 5 36|A4
   CPU A6| 7 37|CPU D6       SCK|3 4|MOSI       MOSI/D5| 6 35|A5
@@ -109,14 +109,14 @@ VRAM A10|18 48|VRAM CS#     D5| 7 14|A13      CPU IRQ#|17 24|CPU R/W
 - AHL is Address High Latch.
 - NC is No Connection.
 - # is negative logic signal.
-- D0-D7 are databus.
+- D0-D7 are data buses.
 -- shared by U1, U2, CN3(CPU and PPU).
 -- D5-D7 are shared by ISP signal.
-- A0-A13 are addressbus. 
+- A0-A13 are address buses. 
 -- A0-A7 are shared by U1, CN3(CPU and PPU)
 -- A8-A13 are shared by U2, CN3(CPU and PPU)
-- CPU A14 and PPU A13# are uniq address buses. 
+- CPU A14 and PPU A13# are unique address buses. 
 - U1 can substitute ATmega16.
-- SOUND IN and SOUND OUT has no connection.
-- If you don't need power switch, short JP1.
-- If you don't need reset switch, open JP2.
+- SOUND IN and SOUND OUT have no connection.
+- If a power switch is unnecessary, short JP1.
+- If a reset switch is unnecessary, open JP2.

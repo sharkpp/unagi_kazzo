@@ -59,7 +59,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		uchar ret = request_cpu_program.offset == request_cpu_program.length;
 		if(ret){
 			if(request_cpu_program.request == REQUEST_FLASH_CONFIG_SET){
-				flash_cpu_config(cpu_buffer);
+				flash_cpu_config(cpu_buffer, request_cpu_program.length);
 			}else{
 				flash_cpu_program(request_cpu_program.address, request_cpu_program.length, cpu_buffer);
 			}
@@ -77,7 +77,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 		uchar ret = request_ppu_program.offset == request_ppu_program.length;
 		if(ret){
 			if(request_ppu_program.request == REQUEST_FLASH_CONFIG_SET){
-				flash_ppu_config(ppu_buffer);
+				flash_ppu_config(ppu_buffer, request_cpu_program.length);
 			}else{
 				flash_ppu_program(request_ppu_program.address, request_ppu_program.length, ppu_buffer);
 			}
@@ -189,7 +189,7 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		return 1;
 	case REQUEST_FIRMWARE_VERSION:{
 		__attribute__ ((section(".firmware.version")))
-		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.2 / " __DATE__;
+		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.3 / " __DATE__;
 		memcpy_P(readbuffer, date, rq->wLength.word);
 		goto xxx_read;}
 	case REQUEST_FIRMWARE_PROGRAM:{
@@ -198,6 +198,9 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		const uint16_t address = rq->wValue.word;
 		const uint16_t length = rq->wIndex.word;
 		if(address >= 0x3800){
+			return 0;
+		}
+		if(((address & 0x3f00) == 0) && (length < 0x1800)){
 			return 0;
 		}
 		if(length + address > 0x3800){

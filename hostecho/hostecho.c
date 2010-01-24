@@ -69,25 +69,56 @@ static bool hex_load(const char *file, long firmsize, uint8_t *image)
 	ihex_destory(t);
 	return ret;
 }
-static void snrom_ramopen(usb_dev_handle *handle)
+static void snrom_wram_open(usb_dev_handle *handle)
 {
 	uint8_t t[5];
 	t[0] = 0x80;
 	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0x8000, 1, t);
 	t[0] = 0, t[1] = 0, t[2] = 0, t[3] = 1, t[4] = 0;
-	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0x8000, 5, t);
+	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0x8000, sizeof(t), t);
 	t[0] = 0, t[1] = 0, t[2] = 0, t[3] = 0, t[4] = 0;
-	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0xe000, 5, t);
-	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0xa000, 5, t);
+	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0xe000, sizeof(t), t);
+	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0xa000, sizeof(t), t);
 }
 
-static int cartridge_ram_transform(usb_dev_handle *handle, const uint8_t *firmware, enum request w, enum request r, long address, long length)
+static void snrom_wram_close(usb_dev_handle *handle)
+{
+	const uint8_t t[5] = {0, 0, 0, 0, 1}; //lsb -> msb
+	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0xe000, sizeof(t), t);
+	write_memory(handle, REQUEST_CPU_WRITE_6502, INDEX_IMPLIED, 0xa000, sizeof(t), t);
+}
+
+static int cartridge_ram_transform(usb_dev_handle *handle, const uint8_t *firmware, enum request w, enum request r, long address, long length, bool dump)
 {
 	uint8_t *compare;
 	compare = malloc(length);
 	write_memory(handle, w, INDEX_IMPLIED, address, length, firmware);
 	read_memory(handle, r, INDEX_IMPLIED, address, length, compare);
 	int ret = memcmp(firmware, compare, length);
+	if(dump == true){
+		int i;
+		uint8_t *t = compare;
+		for(i = 0; i < length; i += 0x10){
+			int j;
+			printf("%06x:", i);
+			for(j = 0; j < 0x10; j++){
+				const char *safix;
+				switch(j){
+				case 7:
+					safix = "-";
+					break;
+				case 0x0f:
+					safix = "\n";
+					break;
+				default:
+					safix = " ";
+					break;
+				}
+				printf("%02x%s", *t, safix);
+				t++;
+			}
+		}
+	}
 	free(compare);
 	return ret;
 }
@@ -103,20 +134,21 @@ static void firmware_update(usb_dev_handle *handle, const char *file)
 		puts("image open error!");
 		goto end;
 	}
-	snrom_ramopen(handle);
+	snrom_wram_open(handle);
 
 	int ppu, cpu = 0;
-	ppu = cartridge_ram_transform(handle, firmware, REQUEST_PPU_WRITE, REQUEST_PPU_READ, 0x0000, 0x2000);
+	ppu = cartridge_ram_transform(handle, firmware, REQUEST_PPU_WRITE, REQUEST_PPU_READ, 0x0000, 0x2000, false);
 	if(firmsize >= 0x2000){
-		cpu = cartridge_ram_transform(handle, firmware + 0x2000, REQUEST_CPU_WRITE_6502, REQUEST_CPU_READ, 0x6000, firmsize - 0x2000);
+		cpu = cartridge_ram_transform(handle, firmware + 0x2000, REQUEST_CPU_WRITE_6502, REQUEST_CPU_READ, 0x6000, firmsize - 0x2000, false);
 	}
 	if((ppu == 0) && (cpu == 0)){
 //		write_memory(handle, REQUEST_FIRMWARE_PROGRAM, firmsize, 0x2000, 0, firmware);
-		write_memory(handle, REQUEST_FIRMWARE_PROGRAM, firmsize, 0x0000, 0, firmware);
 		puts("USB connection will be disconnteced. This is normally.");
-		puts("Re-turn on kazzo power.");
+		puts("Re-turn on kazzo's power.");
+		write_memory(handle, REQUEST_FIRMWARE_PROGRAM, firmsize, 0x0000, 0, firmware);
 	}else{
 		puts("firmware transform error!");
+		snrom_wram_close(handle);
 	}
 end:
 	free(firmware);
@@ -167,6 +199,40 @@ static void firmware_version(usb_dev_handle *handle)
 	puts(version);
 }
 
+static bool ppu_read(usb_dev_handle *handle, int seed)
+{
+	int i;
+	int ret = 0;
+	const int bufsize = 0x80;
+	uint8_t *t, *buf = malloc(bufsize);
+/*	t = buf;
+	for(i = 0; i < bufsize; i++){
+		*t = i;
+		t++;
+	}
+	ret |= cartridge_ram_transform(handle, buf, REQUEST_PPU_WRITE, REQUEST_PPU_READ, 0x0000, bufsize, false);*/
+/*	if(ret == 0){
+		puts("increment ok");
+	}else{
+		puts("increment ng");
+	}*/
+
+	t = buf;
+	srand(5555 * seed);
+	for(i = 0; i < bufsize; i++){
+		*t = rand() & 0xff;
+		t++;
+	}
+	ret |= cartridge_ram_transform(handle, buf, REQUEST_PPU_WRITE, REQUEST_PPU_READ, 0x0000, bufsize, false);
+/*	if(ret == 0){
+		puts("ramdom ok");
+	}else{
+		puts("ramdom ng");
+	}*/
+	t = buf;
+	free(buf);
+	return ret == 0;
+}
 int main(int c, char **v)
 {
 	usb_init();
@@ -195,6 +261,30 @@ int main(int c, char **v)
 			break;
 		case 'v':
 			firmware_verify(handle, v[2]);
+			break;
+		case 'p':{
+			if(DEBUG == 0){
+				break;
+			}
+			int i = 0x1000;
+			const char *ret = "test ok";
+			while(i != 0){
+				if(ppu_read(handle, i) == false){
+					ret = "test ng";
+					break;
+				}
+				if((i+1) % 100 == 0){
+					fprintf(stderr, "\r%05d", i+1);
+					fflush(stderr);
+				}
+				i--;
+			}
+			puts(ret);
+			}break;
+		case 'd':
+			if(DEBUG == 1){
+				write_memory(handle, REQUEST_FIRMWARE_PROGRAM, 0x200, 0x0000, 0, NULL);
+			}
 			break;
 		}
 		break;
