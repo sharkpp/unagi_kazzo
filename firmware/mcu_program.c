@@ -21,6 +21,31 @@ MEGA164P-20[AP]U
 ISP programming -> REQUEST_FIRMWARE_PROGRAM -> flash memory is programmed 2 pages only...
 ISP programming -> power off->on -> REQUEST_FIRMWARE_PROGRAM -> flash memory is programmed all pages.
 */
+//inline function is not needed section defination.
+//memcmp and memset are linked exteneded program area where cannot use when bootloader running.
+enum{
+	fillsize = 0x10
+};
+static inline int my_memcmp(const uint8_t *firm, const uint8_t fill)
+{
+#define CMP1(offset) if(firm[offset] != fill){return 1;}
+#define CMP4(i) CMP1(i+0) CMP1(i+1) CMP1(i+2) CMP1(i+3)
+	CMP4(0) CMP4(4) CMP4(8) CMP4(12)
+	return 0;
+#undef CMP4
+#undef CMP1
+}
+static inline int fillcmp(const uint8_t *firm, const uint8_t fill)
+{
+	int i;
+	for(i = 0; i < SPM_PAGESIZE; i += fillsize){
+		if(my_memcmp(firm, fill) != 0){
+			return 1;
+		}
+		firm += fillsize;
+	}
+	return 0;
+}
 __attribute__((noreturn))
 __attribute__ ((section(".bootloader.programmer")))
 static void mcu_data_program(uint8_t *buf, uint16_t address, uint16_t length)
@@ -32,18 +57,20 @@ static void mcu_data_program(uint8_t *buf, uint16_t address, uint16_t length)
 
 	eeprom_busy_wait();
 	for(page = 0; page < length / SPM_PAGESIZE; page++){
-		int i;
 		mcu_programdata_read(offset, SPM_PAGESIZE, buf);
 		boot_page_erase(address);
 		boot_spm_busy_wait();
-		for(i = 0; i < SPM_PAGESIZE; i += 2){
-			//Set up little-endian word
-			uint16_t w = buf[i+0];
-			w |= buf[i+1] << 8;
-			boot_page_fill(i, w);
+		if((fillcmp(buf, 0) != 0) || (fillcmp(buf, 0xff) != 0)){
+			int i;
+			for(i = 0; i < SPM_PAGESIZE; i += 2){
+				//Set up little-endian word
+				uint16_t w = buf[i+0];
+				w |= buf[i+1] << 8;
+				boot_page_fill(i, w);
+			}
+			boot_page_write(address);
+			boot_spm_busy_wait();
 		}
-		boot_page_write(address);
-		boot_spm_busy_wait();
 		offset += SPM_PAGESIZE;
 		address += SPM_PAGESIZE;
 	}
@@ -58,7 +85,7 @@ endless: //wait watchdog interruptting reset
 
 __attribute__ ((section(".bootloader.version")))
 const struct bootloader_assign BOOTLOADER_ASSIGN = {
-	.version = "kazzo loader 0.1.0",
+	.version = "kazzo loader 0.1.1",
 	.programmer = mcu_data_program
 };
 
