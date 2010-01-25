@@ -32,7 +32,7 @@ enum iobit_bus_control{
 };
 //when cpu_write_flash, phi2 must be low. when phi2 is high, mmc3 and vrc4 changes bank.
 enum {
-	BUS_CLOSE = 0xff,
+	BUS_CLOSE = ~(1 << CPU_PHI2),
 	ADDRESS_CLOSE = 0x3fff //CPU and PPU are mapped internal registers, cartridge closes buses
 };
 /*PDx: use input, empty pin is output*/
@@ -125,14 +125,16 @@ void cpu_read(uint16_t address, uint16_t length, uint8_t *data)
 {
 	BUS_CONTROL_OUT = BUS_CLOSE;
 	while(length != 0){
-//		uint8_t c = BUS_CLOSE;
+		uint8_t c = BUS_CLOSE;
 		direction_write();
 		address_set(address);
 		if((address & 0x8000) != 0){
-//			c &= bit_get_negative(CPU_ROMCS) | (1 << CPU_ROMCS);
+			c &= bit_get_negative(CPU_ROMCS);
 //			BUS_CONTROL_OUT = c;
-			BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
+//			BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
 		}
+		c |= 1 << CPU_PHI2;
+		BUS_CONTROL_OUT = c;
 		direction_read();
 		*data = DATABUS_IN;
 		data += 1;
@@ -147,49 +149,29 @@ void cpu_read_6502(uint16_t address, uint16_t length, uint8_t *data)
 {
 	while(length != 0){
 		//phi2 down
-		uint8_t c = bit_get_negative(CPU_PHI2);
-		BUS_CONTROL_OUT = c;
-
+/*		uint8_t c = bit_get_negative(CPU_PHI2);
+		BUS_CONTROL_OUT = c;*/
+		uint8_t c = BUS_CLOSE;
 		//down -> up
 		direction_write();
 		address_set(address);
-		if((address & 0x8000) != 0){
-			c &= bit_get_negative(CPU_ROMCS);
-		}
 		BUS_CONTROL_OUT = c;
 		clock_wait(1);
 		
 		//phi2 up
-		c |= (1 << CPU_PHI2); // | (1 << CPU_ROMCS);
-		BUS_CONTROL_OUT = c;
-		if(1){
-			direction_read();
-			*data = DATABUS_IN;
-			data += 1;
-		}
-		clock_wait(1);
-		if(0){
-			BUS_CONTROL_OUT = c;
-			direction_read();
-			*data = DATABUS_IN;
-			data += 1;
-		}
-		BUS_CONTROL_OUT = c;
-		
-		//phi2 down
+		c |= (1 << CPU_PHI2);
 		if((address & 0x8000) != 0){
 			c &= bit_get_negative(CPU_ROMCS);
 		}
-		c &= bit_get_negative(CPU_PHI2);
-		if(0){
-			BUS_CONTROL_OUT = c;
-			direction_read();
-			*data = DATABUS_IN;
-			data += 1;
-		}
+		BUS_CONTROL_OUT = c;
+		direction_read();
 		clock_wait(1);
+		*data = DATABUS_IN;
+		data += 1;
+
+		BUS_CONTROL_OUT = c;
 		
-		//bus close
+		//phi2 down, bus close
 		BUS_CONTROL_OUT = BUS_CLOSE;
 		
 		address += 1;
@@ -204,7 +186,7 @@ void ppu_read(uint16_t address, uint16_t length, uint8_t *data)
 	while(length != 0){
 		direction_write();
 		address_set(address);
-		BUS_CONTROL_OUT = bit_get_negative(PPU_RD);
+		BUS_CONTROL_OUT = bit_get_negative(PPU_RD) & bit_get_negative(CPU_PHI2);
 		direction_read();
 		*data = DATABUS_IN;
 		data += 1;
@@ -221,7 +203,7 @@ enum compare_status cpu_compare(uint16_t address, uint16_t length, const uint8_t
 		BUS_CONTROL_OUT = BUS_CLOSE;
 		direction_write();
 		address_set(address);
-		BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
+		BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS) | (1 << CPU_PHI2);
 		direction_read();
 		if(DATABUS_IN != *data){
 			BUS_CONTROL_OUT = BUS_CLOSE;
@@ -241,7 +223,7 @@ enum compare_status ppu_compare(uint16_t address, uint16_t length, const uint8_t
 	while(length != 0){
 		direction_write();
 		address_set(address);
-		BUS_CONTROL_OUT = bit_get_negative(PPU_RD);
+		BUS_CONTROL_OUT = bit_get_negative(PPU_RD) & bit_get_negative(CPU_PHI2);;
 		direction_read();
 		if(DATABUS_IN != *data){
 			BUS_CONTROL_OUT = BUS_CLOSE;
@@ -264,17 +246,17 @@ void cpu_write_6502_nowait(uint16_t address, uint16_t length, const uint8_t *dat
 		address_set(address);
 		
 		//phi2 down
-		control = bit_get_negative(CPU_PHI2);
+		control = bit_get_negative(CPU_RW) & bit_get_negative(CPU_PHI2);
 		BUS_CONTROL_OUT = control;
-		control &= bit_get_negative(CPU_RW);
+		
+		//phi2 up
+		control |= (1 << CPU_PHI2);
 		if((address & 0x8000) != 0){
 			control &= bit_get_negative(CPU_ROMCS);
 		}
 		BUS_CONTROL_OUT = control;
 		
-		//phi2 up
-		control |= (1 << CPU_PHI2) | (1 << CPU_ROMCS);
-		BUS_CONTROL_OUT = control;
+		//data set
 		DATABUS_OUT = *data;
 		data++;
 		
@@ -373,20 +355,19 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 		address_set(address);
 		
 		//phi2 down
-		control = bit_get_negative(CPU_PHI2);
-		BUS_CONTROL_OUT = control;
-		control &= bit_get_negative(CPU_RW);
-		if((address & 0x8000) != 0){
-			control &= bit_get_negative(CPU_ROMCS);
-		}
+		control = bit_get_negative(CPU_RW) & bit_get_negative(CPU_PHI2);
 		BUS_CONTROL_OUT = control;
 		clock_wait(1);
 
 		//phi2 up
-		control |= (1 << CPU_PHI2); //| (1 << CPU_ROMCS);
-		DATABUS_OUT = *data;
+		if((address & 0x8000) != 0){
+			control &= bit_get_negative(CPU_ROMCS);
+		}
+
+		control |= (1 << CPU_PHI2);
 		BUS_CONTROL_OUT = control;
-//		DATABUS_OUT = *data;
+		//data set
+		DATABUS_OUT = *data;
 		data++;
 		clock_wait(1);
 		
@@ -396,12 +377,11 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 		if((address & 0x8000) != 0){
 			control &= bit_get_negative(CPU_ROMCS);
 		}
-//		clock_wait(1);
 		BUS_CONTROL_OUT = control;
 		
 		//bus close
-//		clock_wait(1);
 		BUS_CONTROL_OUT = BUS_CLOSE;
+		clock_wait(1);
 		
 		address += 1;
 		length--;
@@ -412,7 +392,7 @@ void cpu_write_6502(uint16_t address, uint16_t length, const uint8_t *data)
 static inline void ppu_write_waveform(uint16_t address, uint8_t data)
 {
 	address_set(address);//PPU charcter memory /CS open
-	BUS_CONTROL_OUT = bit_get_negative(PPU_WR);
+	BUS_CONTROL_OUT = bit_get_negative(PPU_WR) & bit_get_negative(CPU_PHI2);
 	DATABUS_OUT = data;
 	BUS_CONTROL_OUT = BUS_CLOSE;
 	address_set(0x3fff); ///CS close, use pallete area. When address bus is 0x2000-0x2fff, some cartriges enable tilemap area.
@@ -481,7 +461,7 @@ void mcu_programdata_read(uint16_t address, uint16_t length, uint8_t *data)
 		direction_write();
 		if(address < 0x2000){ //PPU CHR-RAM
 			boot_address_set(address);
-			BUS_CONTROL_OUT = bit_get_negative(PPU_RD);
+			BUS_CONTROL_OUT = bit_get_negative(PPU_RD) & bit_get_negative(CPU_PHI2);
 		}else{ //CPU W-RAM
 			address &= 0x1fff;
 			address |= 0x6000;
@@ -489,6 +469,7 @@ void mcu_programdata_read(uint16_t address, uint16_t length, uint8_t *data)
 /*			if((address & 0x8000) != 0){
 				BUS_CONTROL_OUT = bit_get_negative(CPU_ROMCS);
 			}*/
+			BUS_CONTROL_OUT = BUS_CLOSE | (1 << CPU_PHI2);
 		}
 		direction_read();
 		*data = DATABUS_IN;
