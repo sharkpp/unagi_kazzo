@@ -10,8 +10,8 @@
 #endif
 #if PCB_REVISION == 2
   #define USB_CFG_IOPORTNAME      B
-  #define USB_CFG_DMINUS_BIT      0
-  #define USB_CFG_DPLUS_BIT       1
+  #define USB_CFG_DMINUS_BIT      1
+  #define USB_CFG_DPLUS_BIT       0
   #define USB_CFG_CLOCK_KHZ       (F_CPU/1000)
   #define USB_CFG_CHECK_CRC       0
 #endif
@@ -134,6 +134,7 @@
 #if PCB_REVISION == 2
   #define USB_INTR_CFG            PCICR
   #define USB_INTR_CFG_SET        (1 << PCIE0) 
+  #define USB_INTR_CFG_CLR        0
   #define USB_INTR_ENABLE         PCMSK0
   #define USB_INTR_ENABLE_BIT     PCINT0
   #define USB_INTR_PENDING        PCIFR

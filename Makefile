@@ -1,6 +1,6 @@
 MCU_164P = MCU=atmega164p TARGET=kazzo_mega164p PCB_REVISION=1
 MCU_16 = MCU=atmega16 TARGET=kazzo_mega16 PCB_REVISION=1
-MCU_88 = MCU=atmega88 TARGET=kazzo_mega88 PCB_REVISION=2
+MCU_168 = MCU=atmega168 TARGET=kazzo_mega168 PCB_REVISION=2
 SOURCE_ROOT = Makefile COPYING kazzo_test.exe kazzo_schematics.png readme.txt usbrequest.txt kazzo_mega16.hex kazzo_mega164p.hex
 SOURCE_FIRMWARE = \
 	avr_main.c bus_access.c disk_access.c flashmemory.c mcu_program.c \
@@ -14,11 +14,12 @@ WINDOWS_DRIVER = libusb0.dll kazzo.inf libusb0.sys
 all:
 	(cd firmware;make -f firmware.mak $(MCU_164P))
 	(cd firmware;make -f firmware.mak $(MCU_16))
-	#(cd firmware;make -f firmware.mak $(MCU_88))
+	(cd firmware;make -f firmware.mak $(MCU_168))
 	(cd hostecho;make)
 clean:
 	(cd firmware;make -f firmware.mak $(MCU_164P) clean)
 	(cd firmware;make -f firmware.mak $(MCU_16) clean)
+	(cd firmware;make -f firmware.mak $(MCU_168) clean)
 	(cd hostecho;make clean)
 p4p:
 	(cd firmware;make -f firmware.mak $(MCU_164P) program)

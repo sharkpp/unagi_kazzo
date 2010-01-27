@@ -29,7 +29,7 @@ EXTRAINCDIRS = $(USBDRIVER)
 
 CSTANDARD = -std=gnu99
 CDEFS = -DF_CPU=$(F_CPU)UL -DDEBUG_LEVEL=0 -DPCB_REVISION=$(PCB_REVISION)
-ADEFS = -DF_CPU=$(F_CPU) -DDEBUG_LEVEL=0
+ADEFS = -DF_CPU=$(F_CPU) -DDEBUG_LEVEL=0 -DPCB_REVISION=$(PCB_REVISION)
 CPPDEFS = -DF_CPU=$(F_CPU)UL
 
 #---------------- Compiler Options C ----------------
@@ -107,7 +107,7 @@ EXTRALIBDIRS =
 
 EXTMEMOPTS = -Wl,--section-start,.firmware.version=0x003780
 EXTMEMOPTS += -Wl,--section-start,.bootloader.version=0x003d00
-EXTMEMOPTS += -Wl,--section-start,.bootloader.bus=0x003d80
+EXTMEMOPTS += -Wl,--section-start,.bootloader.bus=0x003d60
 EXTMEMOPTS += -Wl,--section-start,.bootloader.programmer=0x003e00
 
 #---------------- Linker Options ----------------

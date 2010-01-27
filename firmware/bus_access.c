@@ -7,6 +7,10 @@
 #define IO_DIRECTION(NAME) (DDR##NAME)
 #define IO_OUT(NAME) (PORT##NAME)
 #define IO_IN(NAME) (PIN##NAME)
+/*
+--------- assignment and functions for PCB revision 1.x --------
+*/
+#if PCB_REVISION == 1
 /* PAx: output only
 connected CPU and PPU databus*/
 #define ADDRESSBUS_A0_A7_DIR IO_DIRECTION(A)
@@ -16,10 +20,6 @@ connected address high latch(HC574), CPU and PPU databus*/
 #define DATABUS_DIR IO_DIRECTION(B)
 #define DATABUS_OUT IO_OUT(B)
 #define DATABUS_IN IO_IN(B)
-enum databus_dir{
-	DATABUS_DIR_OUT = 0xff,
-	DATABUS_DIR_IN = 0
-};
 /*PCx: output ADDRESS_HIGH_LATCH connect HC574 clock pin, bus control signal
 VRAM_CS is input port this is design mistake!
 */
@@ -30,11 +30,6 @@ enum iobit_bus_control{
 	RESERVE_PPU_POS_A13, PPU_RD, PPU_WR,
 	VRAM_CS, ADDRESS_HIGH_LATCH
 };
-//when cpu_write_flash, phi2 must be low. when phi2 is high, mmc3 and vrc4 changes bank.
-enum {
-	BUS_CLOSE = ~(1 << CPU_PHI2),
-	ADDRESS_CLOSE = 0x3fff //CPU and PPU are mapped internal registers, cartridge closes buses
-};
 /*PDx: use input, empty pin is output*/
 #define USB_MISC_DIR IO_DIRECTION(D)
 #define USB_MISC_PULLUP IO_OUT(D)
@@ -43,12 +38,66 @@ enum iobit_usb_misc{
 	USB_DPLUS = 2, CPU_IRQ, 
 	USB_DMINUS, VRAM_A10
 };
+#endif
+/*
+--------- assignment and functions for PCB revision 2.x --------
+*/
+#if PCB_REVISION == 2
+/* PBx: misc IO 
+0:IO:USB D+ / PCINT0.vector.PCI0
+1:IO:USB D-
+2:I :VRAM A10
+3:I :VRAM CS# / MOSI
+4: O:Address Low Latch / MISO
+5: O:Address High Latch / SCK 
+*/
+#define USB_MISC_DIR IO_DIRECTION(B)
+#define USB_MISC_PULLUP IO_OUT(B)
+#define USB_MISC_IN IO_IN(B)
+enum iobit_usb_misc{
+	USB_DPLUS = 0, USB_DMINUS,
+	VRAM_A10, VRAM_CS,
+	ADDRESS_LOW_LATCH, ADDRESS_HIGH_LATCH,
+	XTAL1, XTAL2
+};
+/* PCx: output; memory control + etc 
+0:I :CPU IRQ# / PCINT8.vector.PCI1
+1: O:CPU PHI2
+2: O:CPU ROMCS#
+3: O:CPU R/W
+4: O:PPU RD#
+5: O:PPU WR#
+6:I :MCU RESET
+*/
+#define BUS_CONTROL_DIR IO_DIRECTION(C)
+#define BUS_CONTROL_OUT IO_OUT(C)
+enum iobit_bus_control{
+	CPU_IRQ = 0, CPU_PHI2, CPU_ROMCS, CPU_RW,
+	PPU_RD, PPU_WR
+};
+/*PD: IO; databus */
+#define DATABUS_DIR IO_DIRECTION(D)
+#define DATABUS_OUT IO_OUT(D)
+#define DATABUS_IN IO_IN(D)
+#endif
+
+enum databus_dir{
+	DATABUS_DIR_OUT = 0xff,
+	DATABUS_DIR_IN = 0
+};
+//when cpu_write_flash, phi2 must be low. when phi2 is high, mmc3 and vrc4 changes bank.
+enum {
+	BUS_CLOSE = ~(1 << CPU_PHI2),
+	ADDRESS_CLOSE = 0x3fff //CPU and PPU are mapped internal registers, cartridge closes buses
+};
+
 static inline uint8_t bit_get_negative(enum iobit_bus_control bit)
 {
 	uint8_t ret = (1 << bit);
 	return ~ret;
 }
 
+#if PCB_REVISION == 1
 /*
 address high databus assignment
 D0-D5: CPU and PPU A8-A13
@@ -63,6 +112,7 @@ static void address_set(uint16_t address)
 		high |= 0x80; //set /A13
 	}
 	DATABUS_OUT = high;
+	//phi2 pulse is needed mmc1
 	BUS_CONTROL_OUT = bit_get_negative(ADDRESS_HIGH_LATCH);
 	BUS_CONTROL_OUT = BUS_CLOSE;
 }
@@ -70,15 +120,42 @@ static void address_set(uint16_t address)
 void bus_init(void)
 {
 	ADDRESSBUS_A0_A7_DIR = 0xff;
-	ADDRESSBUS_A0_A7_OUT = 0;
 	DATABUS_DIR = DATABUS_DIR_OUT;
 	BUS_CONTROL_DIR = bit_get_negative(VRAM_CS); //VRAM_CS is input port
 	BUS_CONTROL_OUT = BUS_CLOSE;
 	USB_MISC_DIR = (0b1100 << 4) | 0b0011; //empty pin use OUT
 	USB_MISC_PULLUP = (1 << CPU_IRQ) | (1 << VRAM_A10);
-	
 	address_set(ADDRESS_CLOSE);
 }
+#endif
+#if PCB_REVISION == 2
+static void address_set(uint16_t address)
+{
+	const uint8_t portb = 0x05;
+	DATABUS_OUT = address & 0xff;
+	asm("cbi %0,%1" : :"M"(portb),"M"(ADDRESS_LOW_LATCH));
+	asm("sbi %0,%1" : :"M"(portb),"M"(ADDRESS_LOW_LATCH));
+	uint8_t high = (address & 0x7fff) >> 8; //mask A0-A14
+	if((address & (1 << 13)) == 0){ //if A13 == 0
+		high |= 0x80; //set /A13
+	}
+	DATABUS_OUT = high;
+	asm("cbi %0,%1" : :"M"(portb),"M"(ADDRESS_HIGH_LATCH));
+	asm("sbi %0,%1" : :"M"(portb),"M"(ADDRESS_HIGH_LATCH));
+	//phi2 pulse is needed mmc1
+	BUS_CONTROL_OUT = BUS_CLOSE | (1 << CPU_PHI2);
+	BUS_CONTROL_OUT = BUS_CLOSE;
+}
+void bus_init(void)
+{
+	DATABUS_DIR = DATABUS_DIR_OUT;
+	BUS_CONTROL_DIR = (1 << CPU_PHI2) | (1 << CPU_ROMCS) | (1 << CPU_RW) | (1 << PPU_RD) | (1 << PPU_WR);
+	BUS_CONTROL_OUT = BUS_CLOSE;
+	USB_MISC_DIR = (1 << ADDRESS_HIGH_LATCH) | (1 << ADDRESS_LOW_LATCH);
+	USB_MISC_PULLUP = (1 << VRAM_A10)| (1 << VRAM_CS);
+	address_set(ADDRESS_CLOSE);
+}
+#endif
 
 /*
 make phi2 edge signal, this is needed by namcot mapper and RP2C33.
@@ -262,9 +339,6 @@ void cpu_write_6502_nowait(uint16_t address, uint16_t length, const uint8_t *dat
 		
 		//phi2 down
 		control &= bit_get_negative(CPU_PHI2);
-		if((address & 0x8000) != 0){
-			control &= bit_get_negative(CPU_ROMCS);
-		}
 		BUS_CONTROL_OUT = control;
 		
 		//bus close
@@ -444,14 +518,29 @@ uint8_t vram_connection_get(void)
 __attribute__ ((section(".bootloader.bus")))
 static void boot_address_set(uint16_t address)
 {
+#if PCB_REVISION == 1
 	ADDRESSBUS_A0_A7_OUT = address & 0xff;
 	uint8_t high = (address & 0x7fff) >> 8; //mask A0-A14
 	if((address & (1 << 13)) == 0){ //if A13 == 0
 		high |= 0x80; //set /A13
 	}
 	DATABUS_OUT = high;
-	BUS_CONTROL_OUT = bit_get_negative(ADDRESS_HIGH_LATCH);
+	BUS_CONTROL_OUT = bit_get_negative(ADDRESS_HIGH_LATCH) & bit_get_negative(CPU_PHI2);
 	BUS_CONTROL_OUT = BUS_CLOSE;
+#endif
+#if PCB_REVISION == 2
+	const uint8_t portb = 0x05;
+	DATABUS_OUT = address & 0xff;
+	asm("cbi %0,%1" : :"M"(portb),"M"(ADDRESS_LOW_LATCH));
+	asm("sbi %0,%1" : :"M"(portb),"M"(ADDRESS_LOW_LATCH));
+	uint8_t high = (address & 0x7fff) >> 8; //mask A0-A14
+	if((address & (1 << 13)) == 0){ //if A13 == 0
+		high |= 0x80; //set /A13
+	}
+	DATABUS_OUT = high;
+	asm("cbi %0,%1" : :"M"(portb),"M"(ADDRESS_HIGH_LATCH));
+	asm("sbi %0,%1" : :"M"(portb),"M"(ADDRESS_HIGH_LATCH));
+#endif
 }
 
 __attribute__ ((section(".bootloader.bus")))

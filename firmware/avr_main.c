@@ -189,12 +189,24 @@ usbMsgLen_t usbFunctionSetup(uchar d[8])
 		return 1;
 	case REQUEST_FIRMWARE_VERSION:{
 		__attribute__ ((section(".firmware.version")))
-		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = "kazzo16 0.1.3 / " __DATE__;
+		static const /*PROGMEM*/ char date[VERSION_STRING_SIZE] = 
+#if PCB_REVISION == 1
+		"kazzo16"
+#endif
+#if PCB_REVISION == 2
+		"kazzo^8"
+#endif
+		" 0.1.3 / " __DATE__;
 		memcpy_P(readbuffer, date, rq->wLength.word);
 		goto xxx_read;}
 	case REQUEST_FIRMWARE_PROGRAM:{
 		void (*t)(uint8_t *buf, uint16_t address, uint16_t length);
+#if PCB_REVISION == 1
 		static const char signature[] = {'k', 'a', 'z', 'z', 'o', '1', '6'};
+#endif
+#if PCB_REVISION == 2
+		static const char signature[] = {'k', 'a', 'z', 'z', 'o', '^', '8'};
+#endif
 		const uint16_t address = rq->wValue.word;
 		const uint16_t length = rq->wIndex.word;
 		if(address >= 0x3800){
