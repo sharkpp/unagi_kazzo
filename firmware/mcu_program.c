@@ -58,9 +58,9 @@ static void mcu_data_program(uint8_t *buf, uint16_t address, uint16_t length)
 	eeprom_busy_wait();
 	for(page = 0; page < length / SPM_PAGESIZE; page++){
 		mcu_programdata_read(offset, SPM_PAGESIZE, buf);
-		boot_page_erase(address);
-		boot_spm_busy_wait();
 		if((fillcmp(buf, 0) != 0) || (fillcmp(buf, 0xff) != 0)){
+			boot_page_erase(address);
+			boot_spm_busy_wait();
 			int i;
 			for(i = 0; i < SPM_PAGESIZE; i += 2){
 				//Set up little-endian word

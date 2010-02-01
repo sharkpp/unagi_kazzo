@@ -139,7 +139,8 @@
   #define USB_INTR_ENABLE_BIT     PCINT0
   #define USB_INTR_PENDING        PCIFR
   #define USB_INTR_PENDING_BIT    PCIF0
-  #define USB_INTR_VECTOR         SIG_PIN_CHANGE0
+//#define USB_INTR_VECTOR         SIG_PIN_CHANGE0
+  #define USB_INTR_VECTOR         PCINT0_vect
 #endif
 
 #endif /* __usbconfig_h_included__ */
