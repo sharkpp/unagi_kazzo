@@ -1,0 +1,94 @@
+----AVR fusebit configuration----
+ATmega168: low byte 0xee, high byte 0xdf, extended byte 0xff
+  CKDIV8:1 CKOUT:1 SUT:10 CKSEL:1110
+  RSTDISBL:1 DWEN:1 SPIEN:0 WDTON:1 EESAVE:1 BODLEVEL:111
+  BOOTSZ:11 BOOTRST:1
+
+----list of parts-----
+#    |name
+-----+-------------------
+U1   |ATmega168(P)
+U2,U3|74HC574
+CN1  |type B female USB socket
+CN2  |3x2 pin header, 2.54 mm spacing
+CN3  |30x2 pin cardedge connector, 2.54 mm spacing
+CN4  |36x2 pin cardedge connector, 2.54 mm spacing
+R1,R2|68 ohm register
+R3   |1.5 kohm register
+R4   |30 kohm register
+D1,D2|3.6 V zener diode
+X1   |16.0 MHz ceramic resonator
+C1,C2,C3|0.1uF ceramic capacitor
+CP1  |10uF electric capacitor
+JP1  |toggle switch
+JP2  |push switch
+
+----pin assignment----
+See schematics for switch, register, diode and capacitor connection.
+
+ U1: ATmega168 (DIP)     U2: 74HC574         CN1: USB socket type B
+       +--v--+               +--v--+               +---+            
+ Reset#| 1 28|PPU WR#     GND| 1 20|Vcc         +5V|1 4|GND         
+     D0| 2 27|PPU RD#      D0| 2 19|A8           D-|2 3|D+          
+     D1| 3 26|CPU R/W      D1| 3 18|A9             +---+            
+     D2| 4 25|CPU ROMCS#   D2| 4 17|A10      CN2: ISP conncetor     
+     D3| 5 24|CPU PHI2     D3| 5 16|A11            +---+            
+     D4| 6 23|CPU IRQ#     D4| 6 15|A12        MISO|1 2|Vcc         
+    Vcc| 7 22|GND          D5| 7 14|A13         SCK|3 4|MOSI        
+    GND| 8 21|+5V          D6| 8 13|CPU A14  Reset#|5 6|GND         
+  XTAL1| 9 20|+5V          D7| 9 12|PPU A13#       +---+          
+  XTAL2|10 19|SCK/AHL     GND|10 11|AHL      
+     D5|11 18|MISO/ALL       +-----+         
+     D6|12 17|MOSI/VRAM CS# U3: 74HC574      
+     D7|13 16|VRAM A10       +--v--+         
+ USB D+|14 15|USB D-      GND| 1 20|Vcc      
+       +-----+             D0| 2 19|A0       
+                           D1| 3 18|A1       
+                           D2| 4 17|A2       
+                           D3| 5 16|A3       
+                           D4| 6 15|A4       
+                           D5| 7 14|A5       
+                           D6| 8 13|A6       
+                           D7| 9 12|A7       
+                          GND|10 11|ALL      
+                             +-----+         
+
+CN3: cartridge connector  CN4: cartridge connector 
+        +-----+                   +-----+          
+     GND| 1 31|+5V             +5V|36 72|GND       
+ CPU A11| 2 32|CPU PHI2     CIC S1|35 71|CIC CLOCK 
+ CPU A10| 3 33|CPU A12      CIC S0|34 70|CIC S2    
+  CPU A9| 4 34|CPU A13      PPU D3|33 69|PPU D4    
+  CPU A8| 5 35|CPU A14      PPU D2|32 68|PPU D5    
+  CPU A7| 6 36|CPU D7       PPU D1|31 67|PPU D6    
+  CPU A6| 7 37|CPU D6       PPU D0|30 66|PPU D7    
+  CPU A5| 8 38|CPU D5       PPU A0|29 65|PPU A13   
+  CPU A4| 9 39|CPU D4       PPU A1|28 64|PPU A12   
+  CPU A3|10 40|CPU D3       PPU A2|27 63|PPU A10   
+  CPU A2|11 41|CPU D2       PPU A3|26 62|PPU A11   
+  CPU A1|12 42|CPU D1       PPU A4|25 61|PPU A9    
+  CPU A0|13 43|CPU D0       PPU A5|24 60|PPU A8    
+ CPU R/W|14 44|CPU ROMCS#   PPU A6|23 59|PPU A7    
+CPU IRQ#|15 45|SOUND IN   VRAM A10|22 58|PPU A13#  
+     GND|16 46|SOUND OUT   PPU RD#|21 57|VRAM CS#  
+ PPU RD#|17 47|PPU WR#      EXP 38|20 56|PPU WR#   
+VRAM A10|18 48|VRAM CS#     EXP 39|19 55|EXP 10    
+  PPU A6|19 49|PPU A13#     EXP 40|18 54|EXP 9     
+  PPU A5|20 50|PPU A7       EXP 41|17 53|EXP 8     
+  PPU A4|21 51|PPU A8       EXP 42|16 52|EXP 7     
+  PPU A3|22 52|PPU A9     CPU IRQ#|15 51|EXP 6     
+  PPU A2|23 53|PPU A10     CPU R/W|14 50|CPU ROMCS#
+  PPU A1|24 54|PPU A11      CPU A0|13 49|CPU D0    
+  PPU A0|25 55|PPU A12      CPU A1|12 48|CPU D1    
+  PPU D0|26 56|PPU A13      CPU A2|11 47|CPU D2    
+  PPU D1|27 57|PPU D7       CPU A3|10 46|CPU D3    
+  PPU D2|28 58|PPU D6       CPU A4| 9 45|CPU D4    
+  PPU D3|29 59|PPU D5       CPU A5| 8 44|CPU D5    
+     +5V|30 60|PPU D4       CPU A6| 7 43|CPU D6    
+        +-----+             CPU A7| 6 42|CPU D7    
+                            CPU A8| 5 41|CPU A14
+                            CPU A9| 4 40|CPU A13
+                           CPU A10| 3 39|CPU A12
+                           CPU A11| 2 38|CPU PHI2
+                               GND| 1 37|Video CLOCK
+                                  +-----+

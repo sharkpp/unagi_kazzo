@@ -1,7 +1,10 @@
 MCU_164P = MCU=atmega164p TARGET=kazzo_mega164p PCB_REVISION=1
 MCU_16 = MCU=atmega16 TARGET=kazzo_mega16 PCB_REVISION=1
 MCU_168 = MCU=atmega168 TARGET=kazzo_mega168 PCB_REVISION=2
-SOURCE_ROOT = Makefile COPYING kazzo_test.exe kazzo_schematics.png readme.txt usbrequest.txt kazzo_mega16.hex kazzo_mega164p.hex
+SOURCE_ROOT = \
+	Makefile COPYING kazzo_test.exe kazzo_pcb_1.png kazzo_pcb_2.png \
+	readme.txt usbrequest.txt mcu16.txt mcu88.txt \
+	kazzo_mega16.hex kazzo_mega164p.hex kazzo_mega168.hex 
 SOURCE_FIRMWARE = \
 	avr_main.c bus_access.c disk_access.c flashmemory.c mcu_program.c \
 	bus_access.h disk_access.h flashmemory.h kazzo_request.h kazzo_task.h type.h usbconfig.h mcu_program.h \
